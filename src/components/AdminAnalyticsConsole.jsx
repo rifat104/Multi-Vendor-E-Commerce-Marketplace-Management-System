@@ -128,6 +128,35 @@ export const AdminAnalyticsConsole = () => {
     document.body.removeChild(link);
   };
 
+  // Authentic Top Selling Products Calculation
+  const productSalesMap = {};
+  orders.forEach((o) => {
+    if (o.status !== 'Cancelled') {
+      o.items.forEach((item) => {
+        const prodId = item.productId || item.id || item.title;
+        if (!productSalesMap[prodId]) {
+          const matchedProd = products.find((p) => p.id === prodId || p.title === item.title);
+          productSalesMap[prodId] = {
+            id: prodId,
+            title: item.title,
+            category: matchedProd?.category || 'General',
+            vendorName: item.vendorName || matchedProd?.vendorName || 'Kinbo Seller',
+            price: item.price,
+            image: item.image || matchedProd?.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+            unitsSold: 0,
+            totalRevenue: 0,
+          };
+        }
+        productSalesMap[prodId].unitsSold += item.quantity;
+        productSalesMap[prodId].totalRevenue += item.price * item.quantity;
+      });
+    }
+  });
+
+  const topSellingProducts = Object.values(productSalesMap)
+    .sort((a, b) => b.totalRevenue - a.totalRevenue)
+    .slice(0, 6);
+
   return (
     <div>
       {/* Top Header & Download Buttons */}
@@ -189,7 +218,7 @@ export const AdminAnalyticsConsole = () => {
             BDT {totalGMV.toLocaleString()}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--accent-emerald)', marginTop: '0.2rem', fontWeight: 700 }}>
-            ↑ 24% growth vs previous month
+            ↑ Live Platform Sales
           </div>
         </div>
 
@@ -374,7 +403,7 @@ export const AdminAnalyticsConsole = () => {
       </div>
 
       {/* Vendor Sales Performance Ranking */}
-      <div className="card" style={{ padding: '1.5rem' }}>
+      <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -421,6 +450,55 @@ export const AdminAnalyticsConsole = () => {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Top Selling Products Revenue Table */}
+      <div className="card" style={{ padding: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <ShoppingBag size={18} style={{ color: 'var(--accent-emerald)' }} /> Top Selling Products Revenue Ranking
+            </h3>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 2 }}>
+              Best-performing items calculated from actual customer orders
+            </p>
+          </div>
+        </div>
+
+        <div className="table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Product</th>
+                <th>Seller Store</th>
+                <th>Units Sold</th>
+                <th>Unit Price</th>
+                <th>Total Gross Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topSellingProducts.map((p, idx) => (
+                <tr key={p.id || idx}>
+                  <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>#{idx + 1}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <img src={p.image} alt={p.title} style={{ width: 38, height: 38, borderRadius: '6px', objectFit: 'cover' }} />
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.85rem' }}>{p.title}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Category: {p.category}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ fontWeight: 600, fontSize: '0.82rem' }}>{p.vendorName}</td>
+                  <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>{p.unitsSold} Units</td>
+                  <td>BDT {p.price.toLocaleString()}</td>
+                  <td style={{ fontWeight: 800, color: '#15803d' }}>BDT {p.totalRevenue.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
