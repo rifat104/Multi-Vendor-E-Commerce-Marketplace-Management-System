@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Star, ShoppingBag, Store, ShieldCheck, Tag, Check, ArrowRight } from 'lucide-react';
 
 export const ProductDetailModal = ({ product, onClose, onOpenCart, onOpenVendorProfile }) => {
-  const { addToCart, reviews, vendors, coupons, collectedVouchers, collectVoucher } = useApp();
+  const { addToCart, reviews, vendors, coupons, collectedVouchers, collectVoucher, currentUser, activeRole } = useApp();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -11,6 +11,13 @@ export const ProductDetailModal = ({ product, onClose, onOpenCart, onOpenVendorP
 
   const vendor = vendors.find((v) => v.id === product.vendorId);
   const productReviews = reviews.filter((r) => r.productId === product.id);
+
+  const isVendorUser = currentUser?.role === 'vendor' || activeRole === 'vendor' || Boolean(currentUser?.vendorId);
+  const isOwnProduct =
+    isVendorUser &&
+    ((currentUser?.vendorId && product.vendorId === currentUser.vendorId) ||
+      (product.vendorName && currentUser?.name && product.vendorName.toLowerCase() === currentUser.name.toLowerCase()) ||
+      (product.vendorName && currentUser?.ownerName && product.vendorName.toLowerCase() === currentUser.ownerName.toLowerCase()));
 
   const handleAddToCart = () => {
     const success = addToCart(product, quantity);
@@ -238,19 +245,40 @@ export const ProductDetailModal = ({ product, onClose, onOpenCart, onOpenVendorP
               </div>
             )}
 
+            {isOwnProduct && (
+              <div
+                style={{
+                  background: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  marginBottom: '1rem',
+                  textAlign: 'center',
+                }}
+              >
+                🚫 Store Owner Notice: Vendors cannot purchase products from their own store.
+              </div>
+            )}
+
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: 'auto' }}>
               <button
                 className="btn btn-primary"
-                style={{ flex: 1, padding: '0.85rem' }}
-                disabled={product.stock <= 0}
+                style={{ flex: 1, padding: '0.85rem', opacity: isOwnProduct ? 0.6 : 1, cursor: isOwnProduct ? 'not-allowed' : 'pointer' }}
+                disabled={product.stock <= 0 || isOwnProduct}
                 onClick={handleAddToCart}
               >
-                <ShoppingBag size={18} /> {added ? '✓ Added to Cart!' : 'Add to Cart'}
+                <ShoppingBag size={18} /> {isOwnProduct ? '🚫 Cannot Buy Own Product' : added ? '✓ Added to Cart!' : 'Add to Cart'}
               </button>
 
               <button
                 className="btn btn-outline"
+                disabled={isOwnProduct}
+                style={{ opacity: isOwnProduct ? 0.6 : 1, cursor: isOwnProduct ? 'not-allowed' : 'pointer' }}
                 onClick={() => {
+                  if (isOwnProduct) return;
                   const success = addToCart(product, quantity);
                   if (success) {
                     onClose();

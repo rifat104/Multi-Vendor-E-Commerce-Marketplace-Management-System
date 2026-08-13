@@ -733,6 +733,20 @@ export const AppProvider = ({ children }) => {
       return false;
     }
 
+    // Block Vendors from buying their own store products
+    const isVendorUser = currentUser.role === 'vendor' || activeRole === 'vendor' || currentUser.vendorId;
+    if (isVendorUser) {
+      const isOwnProduct =
+        (currentUser.vendorId && product.vendorId === currentUser.vendorId) ||
+        (product.vendorName && currentUser.name && product.vendorName.toLowerCase() === currentUser.name.toLowerCase()) ||
+        (product.vendorName && currentUser.ownerName && product.vendorName.toLowerCase() === currentUser.ownerName.toLowerCase());
+
+      if (isOwnProduct) {
+        alert(`🚫 Vendors cannot purchase products from their own store (${product.vendorName})!\nTo buy products from another seller store, please select items from other vendors.`);
+        return false;
+      }
+    }
+
     setCart((prevCart) => {
       const existingIndex = prevCart.findIndex((item) => item.id === product.id);
       if (existingIndex > -1) {
