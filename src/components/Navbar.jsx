@@ -55,16 +55,22 @@ export const Navbar = ({
 
   const unreadNotifs = userNotifications.filter((n) => !n.read);
 
-  // Live Auto-Complete Product Matching
+  // Live Auto-Complete Product Matching (Exclude products from Suspended Vendors)
   const matchingSuggestions = searchQuery.trim()
     ? products
-        .filter(
-          (p) =>
+        .filter((p) => {
+          const v = vendors.find(
+            (vendor) => vendor.id === p.vendorId || vendor.name.toLowerCase() === (p.vendorName || '').toLowerCase()
+          );
+          if (v && v.status === 'Suspended') return false;
+
+          return (
             p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.category.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+          );
+        })
         .slice(0, 6)
     : [];
 

@@ -753,7 +753,10 @@ export const AdminView = () => {
                         <button
                           className="btn btn-outline"
                           style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', color: 'var(--accent-rose)' }}
-                          onClick={() => suspendVendor(v.id)}
+                          onClick={() => {
+                            suspendVendor(v.id);
+                            alert(`⚠️ Vendor store "${v.name}" has been SUSPENDED!\nAll products from this vendor are now hidden from the public marketplace.`);
+                          }}
                         >
                           <Ban size={12} /> Suspend Store
                         </button>
@@ -761,9 +764,12 @@ export const AdminView = () => {
                         <button
                           className="btn btn-success"
                           style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                          onClick={() => approveVendor(v.id)}
+                          onClick={() => {
+                            approveVendor(v.id);
+                            alert(`✓ Vendor store "${v.name}" has been APPROVED!\nProducts are now visible on the public marketplace.`);
+                          }}
                         >
-                          Approve
+                          Approve Store
                         </button>
                       )}
                     </td>

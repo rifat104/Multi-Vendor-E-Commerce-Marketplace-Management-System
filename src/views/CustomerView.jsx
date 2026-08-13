@@ -63,8 +63,17 @@ export const CustomerView = ({
 
   const customerOrders = orders.filter((o) => o.customerId === currentUser.id);
 
+  // Exclude products belonging to Suspended Vendors
+  const activeProducts = products.filter((p) => {
+    const v = vendors.find(
+      (vendor) => vendor.id === p.vendorId || vendor.name.toLowerCase() === (p.vendorName || '').toLowerCase()
+    );
+    if (v && v.status === 'Suspended') return false;
+    return true;
+  });
+
   // Product Filtering
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = activeProducts.filter((p) => {
     const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
     const matchesSearch =
       !searchQuery ||
@@ -82,7 +91,7 @@ export const CustomerView = ({
     filteredProducts.sort((a, b) => b.rating - a.rating);
   }
 
-  const flashSaleProducts = products.slice(0, 4);
+  const flashSaleProducts = activeProducts.slice(0, 4);
   const approvedVendors = vendors.filter((v) => v.status === 'Approved');
 
   const handleRetrySubmit = (orderId) => {
