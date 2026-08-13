@@ -1399,6 +1399,32 @@ export const AppProvider = ({ children }) => {
     });
   };
 
+  const STORAGE_VERSION = 'kinbo_v2026_08_14_v6';
+
+  useEffect(() => {
+    const currentVer = localStorage.getItem('kinbo_storage_version');
+    if (currentVer !== STORAGE_VERSION) {
+      setProducts(INITIAL_PRODUCTS);
+      setVendors(INITIAL_VENDORS);
+      setCoupons(INITIAL_COUPONS);
+      localStorage.setItem('kinbo_products', JSON.stringify(INITIAL_PRODUCTS));
+      localStorage.setItem('kinbo_vendors', JSON.stringify(INITIAL_VENDORS));
+      localStorage.setItem('kinbo_coupons', JSON.stringify(INITIAL_COUPONS));
+      localStorage.setItem('kinbo_storage_version', STORAGE_VERSION);
+    }
+  }, []);
+
+  const resetPlatformData = () => {
+    setProducts(INITIAL_PRODUCTS);
+    setVendors(INITIAL_VENDORS);
+    setCoupons(INITIAL_COUPONS);
+    localStorage.setItem('kinbo_products', JSON.stringify(INITIAL_PRODUCTS));
+    localStorage.setItem('kinbo_vendors', JSON.stringify(INITIAL_VENDORS));
+    localStorage.setItem('kinbo_coupons', JSON.stringify(INITIAL_COUPONS));
+    localStorage.setItem('kinbo_storage_version', STORAGE_VERSION);
+    showAlert('Data Synced', '✓ Marketplace product catalog & seller stores synced to latest version successfully!', 'success');
+  };
+
   const closeAlert = () => {
     setCustomAlert((prev) => ({ ...prev, isOpen: false }));
   };
@@ -1465,6 +1491,7 @@ export const AppProvider = ({ children }) => {
         deleteProduct,
         archiveOrder,
         addReview,
+        resetPlatformData,
       }}
     >
       {children}

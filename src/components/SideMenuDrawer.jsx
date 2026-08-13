@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Sparkles,
   Lock,
+  RefreshCw,
 } from 'lucide-react';
 
 export const SideMenuDrawer = ({
@@ -23,7 +24,7 @@ export const SideMenuDrawer = ({
   onOpenRegisterVendor,
   onSelectCategory,
 }) => {
-  const { currentUser, activeRole, setActiveRole, logout, categories, vendors } = useApp();
+  const { currentUser, activeRole, setActiveRole, logout, categories, vendors, resetPlatformData } = useApp();
 
   if (!isOpen) return null;
 
@@ -291,6 +292,27 @@ export const SideMenuDrawer = ({
                       <Store size={18} style={{ color: 'var(--accent-blue)' }} /> Sell on Kinbo (Become Vendor)
                     </button>
                   )}
+
+                  <button
+                    onClick={() => {
+                      resetPlatformData();
+                      onClose();
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(14, 165, 233, 0.1)',
+                      color: 'var(--accent-blue)',
+                      fontWeight: 700,
+                      fontSize: '0.85rem',
+                      border: '1px dashed var(--accent-blue-light)',
+                    }}
+                  >
+                    <RefreshCw size={18} /> Sync Latest Products & Stores
+                  </button>
                 </div>
               </div>
 
