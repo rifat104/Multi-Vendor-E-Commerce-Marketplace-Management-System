@@ -6,7 +6,8 @@ import confetti from 'canvas-confetti';
 export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
   const { cart, currentUser, placeOrder, coupons, appliedCoupon, applyCoupon, removeCoupon } = useApp();
 
-  const [address, setAddress] = useState(currentUser.address);
+  const [selectedLocation, setSelectedLocation] = useState('Dhaka');
+  const [streetAddress, setStreetAddress] = useState(currentUser.address || 'House 12, Road 4, Sector 7');
   const [phone, setPhone] = useState(currentUser.phone);
   const [paymentMethod, setPaymentMethod] = useState('bKash');
   const [paymentTrxId, setPaymentTrxId] = useState('');
@@ -16,6 +17,20 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
   const [placedOrderId, setPlacedOrderId] = useState(null);
 
   if (!isOpen) return null;
+
+  const locationsList = [
+    { id: 'Dhaka', name: 'Dhaka (Inside City)', fee: 70, tag: 'Inside Dhaka — BDT 70' },
+    { id: 'Chattogram', name: 'Chattogram (Chittagong)', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Sylhet', name: 'Sylhet Division', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Rangpur', name: 'Rangpur Division', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Rajshahi', name: 'Rajshahi Division', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Khulna', name: 'Khulna Division', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Barishal', name: 'Barishal Division', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Mymensingh', name: 'Mymensingh Division', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Cumilla', name: 'Cumilla District', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Gazipur', name: 'Gazipur District', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+    { id: 'Narayanganj', name: 'Narayanganj District', fee: 150, tag: 'Outside Dhaka — BDT 150' },
+  ];
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -29,7 +44,8 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
     }
   }
 
-  const shippingFee = 120;
+  // Dynamic Shipping Fee: BDT 70 Inside Dhaka, BDT 150 Outside Dhaka
+  const shippingFee = selectedLocation === 'Dhaka' ? 70 : 150;
   const total = Math.max(0, subtotal - discountAmount + shippingFee);
 
   const handleApplyCoupon = (e) => {
@@ -46,17 +62,18 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
 
   const handleSubmitOrder = (e) => {
     e.preventDefault();
-    if (!address || !phone) return;
+    if (!streetAddress || !phone) return;
     if ((paymentMethod === 'bKash' || paymentMethod === 'Nagad') && !paymentTrxId) {
       alert(`Please enter your ${paymentMethod} Transaction ID.`);
       return;
     }
 
     setIsSubmitting(true);
+    const fullAddress = `${streetAddress.trim()}, ${selectedLocation}`;
 
     setTimeout(() => {
       const orderId = placeOrder({
-        address,
+        address: fullAddress,
         phone,
         paymentMethod,
         paymentTrxId: paymentTrxId || `TRX-${Math.floor(100000 + Math.random() * 900000)}`,
@@ -165,27 +182,51 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
           </div>
         ) : (
           <form onSubmit={handleSubmitOrder}>
-            {/* Delivery Address */}
-            <div className="form-group">
-              <label className="form-label">Delivery Shipping Address</label>
-              <input
-                type="text"
-                className="form-input"
-                required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="House, Road, Area, City"
-              />
+            {/* Location Selector & Address */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Delivery Location / City *</label>
+                <select
+                  className="form-select"
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  style={{ fontWeight: 700, color: selectedLocation === 'Dhaka' ? '#0369a1' : '#b45309' }}
+                >
+                  {locationsList.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      📍 {loc.name} ({loc.fee === 70 ? '70 TK' : '150 TK'})
+                    </option>
+                  ))}
+                </select>
+                <div style={{ fontSize: '0.72rem', marginTop: 4, fontWeight: 700, color: selectedLocation === 'Dhaka' ? '#15803d' : '#b45309' }}>
+                  {selectedLocation === 'Dhaka'
+                    ? '✓ Inside Dhaka Fee: BDT 70'
+                    : `⚡ Outside Dhaka Fee: BDT 150 (${selectedLocation})`}
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Recipient Contact Phone *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+8801700000000"
+                />
+              </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Recipient Contact Phone</label>
+              <label className="form-label">Street / House Shipping Address *</label>
               <input
                 type="text"
                 className="form-input"
                 required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={streetAddress}
+                onChange={(e) => setStreetAddress(e.target.value)}
+                placeholder="House, Road, Block, Neighborhood"
               />
             </div>
 
@@ -387,8 +428,10 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>
-                <span>Delivery Fee:</span>
-                <span>BDT {shippingFee.toLocaleString()}</span>
+                <span>Delivery Fee ({selectedLocation === 'Dhaka' ? 'Inside Dhaka' : `Outside Dhaka - ${selectedLocation}`}):</span>
+                <span style={{ fontWeight: 700, color: selectedLocation === 'Dhaka' ? '#0369a1' : '#b45309' }}>
+                  BDT {shippingFee.toLocaleString()}
+                </span>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.15rem', fontWeight: 800, color: 'var(--accent-blue)', paddingTop: '0.4rem', borderTop: '1px solid var(--border-color)' }}>
