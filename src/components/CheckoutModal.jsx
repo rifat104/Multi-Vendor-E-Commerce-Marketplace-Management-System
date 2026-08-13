@@ -4,7 +4,7 @@ import { X, CheckCircle2, Smartphone, Tag, Check, ArrowRight } from 'lucide-reac
 import confetti from 'canvas-confetti';
 
 export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
-  const { cart, currentUser, placeOrder, coupons, appliedCoupon, applyCoupon, removeCoupon } = useApp();
+  const { cart, currentUser, placeOrder, coupons, appliedCoupon, applyCoupon, removeCoupon, showAlert } = useApp();
 
   const [selectedLocation, setSelectedLocation] = useState('Dhaka');
   const [streetAddress, setStreetAddress] = useState(currentUser.address || 'House 12, Road 4, Sector 7');
@@ -64,7 +64,7 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
     e.preventDefault();
     if (!streetAddress || !phone) return;
     if ((paymentMethod === 'bKash' || paymentMethod === 'Nagad') && !paymentTrxId) {
-      alert(`Please enter your ${paymentMethod} Transaction ID.`);
+      showAlert('TrxID Required', `Please enter your ${paymentMethod} Transaction ID.`, 'error');
       return;
     }
 

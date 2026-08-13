@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Star } from 'lucide-react';
 
 export const ReviewModal = ({ isOpen, onClose, product, onSuccessReview }) => {
-  const { addReview } = useApp();
+  const { addReview, showAlert } = useApp();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
@@ -21,11 +21,11 @@ export const ReviewModal = ({ isOpen, onClose, product, onSuccessReview }) => {
     });
 
     if (res && !res.success) {
-      alert(`❌ ${res.message}`);
+      showAlert('Review Submission Limit', `❌ ${res.message}`, 'error');
       return;
     }
 
-    alert('✓ Thank you! Your product review has been submitted successfully.');
+    showAlert('Review Submitted', '✓ Thank you! Your product review has been submitted successfully.', 'success');
     if (onSuccessReview) {
       onSuccessReview(product.orderId);
     }

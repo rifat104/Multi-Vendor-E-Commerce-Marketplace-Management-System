@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, PlusCircle, UploadCloud, Image as ImageIcon } from 'lucide-react';
 
 export const AddProductModal = ({ isOpen, onClose }) => {
-  const { addProduct, categories, activeVendorId, vendors } = useApp();
+  const { addProduct, categories, activeVendorId, vendors, showAlert } = useApp();
 
   const currentVendor = vendors.find((v) => v.id === activeVendorId);
 
@@ -56,7 +56,7 @@ export const AddProductModal = ({ isOpen, onClose }) => {
         };
         reader.readAsDataURL(file);
       } else {
-        alert('Please select an image file (PNG, JPG, WEBP).');
+        showAlert('Invalid File Type', 'Please select an image file (PNG, JPG, WEBP).', 'error');
       }
     }
   };

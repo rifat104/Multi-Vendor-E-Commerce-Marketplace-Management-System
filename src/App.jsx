@@ -15,9 +15,10 @@ import { LoginModal } from './components/LoginModal';
 import { VoucherDrawer } from './components/VoucherDrawer';
 import { SideMenuDrawer } from './components/SideMenuDrawer';
 import { ProductDetailModal } from './components/ProductDetailModal';
+import { CustomAlertModal } from './components/CustomAlertModal';
 
 const MainAppContent = () => {
-  const { activeRole, setActiveRole, isLoginModalOpen, setIsLoginModalOpen } = useApp();
+  const { activeRole, setActiveRole, isLoginModalOpen, setIsLoginModalOpen, customAlert, closeAlert } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -109,6 +110,14 @@ const MainAppContent = () => {
           setSelectedCategory(catId);
           setActiveRole('customer');
         }}
+      />
+
+      <CustomAlertModal
+        isOpen={customAlert.isOpen}
+        title={customAlert.title}
+        message={customAlert.message}
+        type={customAlert.type}
+        onClose={closeAlert}
       />
 
       {/* Footer */}

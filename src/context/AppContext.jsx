@@ -832,7 +832,7 @@ export const AppProvider = ({ children }) => {
         (product.vendorName && currentUser.ownerName && product.vendorName.toLowerCase() === currentUser.ownerName.toLowerCase());
 
       if (isOwnProduct) {
-        alert(`🚫 Vendors cannot purchase products from their own store (${product.vendorName})!\nTo buy products from another seller store, please select items from other vendors.`);
+        showAlert('Vendor Self-Purchase Restricted', `🚫 Vendors cannot purchase products from their own store (${product.vendorName})!\nTo buy products from another seller store, please select items from other vendors.`, 'error');
         return false;
       }
     }
@@ -1325,6 +1325,45 @@ export const AppProvider = ({ children }) => {
     setNotifications([]);
   };
 
+  // Custom Animated Popup State (Replaces browser native "localhost says..." dialogs)
+  const [customAlert, setCustomAlert] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
+
+  const showAlert = (titleOrMsg, message = '', type = 'info') => {
+    let finalTitle = titleOrMsg;
+    let finalMsg = message;
+    let finalType = type;
+
+    if (!message) {
+      finalMsg = titleOrMsg;
+      if (titleOrMsg.startsWith('❌') || titleOrMsg.startsWith('🚫') || titleOrMsg.startsWith('⚠️')) {
+        finalType = 'error';
+        finalTitle = 'Attention Required';
+      } else if (titleOrMsg.startsWith('✓') || titleOrMsg.startsWith('💸') || titleOrMsg.startsWith('🎁') || titleOrMsg.startsWith('⭐')) {
+        finalType = 'success';
+        finalTitle = 'Success!';
+      } else {
+        finalType = 'info';
+        finalTitle = 'Kinbo Marketplace Notice';
+      }
+    }
+
+    setCustomAlert({
+      isOpen: true,
+      title: finalTitle,
+      message: finalMsg,
+      type: finalType,
+    });
+  };
+
+  const closeAlert = () => {
+    setCustomAlert((prev) => ({ ...prev, isOpen: false }));
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -1338,6 +1377,9 @@ export const AppProvider = ({ children }) => {
         setActiveVendorId,
         isLoginModalOpen,
         setIsLoginModalOpen,
+        customAlert,
+        showAlert,
+        closeAlert,
         coupons,
         collectedVouchers,
         collectVoucher,

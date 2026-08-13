@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const DeliveryView = () => {
-  const { orders, currentUser, deliveryAgents, driverProcessDelivery, payoutRequests, requestDeliveryPayout, logout } = useApp();
+  const { orders, currentUser, deliveryAgents, driverProcessDelivery, payoutRequests, requestDeliveryPayout, logout, showAlert } = useApp();
   const [filterTab, setFilterTab] = useState('all');
 
   // Withdraw Modal State
@@ -86,17 +86,17 @@ export const DeliveryView = () => {
     const amountNum = Number(withdrawAmount);
 
     if (amountNum < 100) {
-      alert('❌ Minimum delivery commission withdrawal amount is BDT 100.');
+      showAlert('Withdrawal Limit', '❌ Minimum delivery commission withdrawal amount is BDT 100.', 'error');
       return;
     }
 
     if (amountNum > availableBalance) {
-      alert(`❌ Insufficient commission balance! Your available withdraw balance is BDT ${availableBalance.toLocaleString()}.`);
+      showAlert('Insufficient Balance', `❌ Insufficient commission balance! Your available withdraw balance is BDT ${availableBalance.toLocaleString()}.`, 'error');
       return;
     }
 
     if (!accountDetails.trim()) {
-      alert('❌ Please enter your payout account details (e.g., bKash Personal Number 017XXXXXX).');
+      showAlert('Account Details Required', '❌ Please enter your payout account details (e.g., bKash Personal Number 017XXXXXX).', 'error');
       return;
     }
 
@@ -112,13 +112,13 @@ export const DeliveryView = () => {
     );
 
     if (res.success) {
-      alert(`✓ ${res.message}`);
+      showAlert('Payout Requested', `✓ ${res.message}`, 'success');
       setIsWithdrawModalOpen(false);
       setWithdrawAmount('100');
       setAccountDetails('');
       setWithdrawNote('');
     } else {
-      alert(`❌ ${res.message}`);
+      showAlert('Request Failed', `❌ ${res.message}`, 'error');
     }
   };
 
@@ -465,7 +465,7 @@ export const DeliveryView = () => {
                       style={{ width: '100%', fontSize: '0.82rem', padding: '0.55rem' }}
                       onClick={() => {
                         driverProcessDelivery(order.id, 'Shipped');
-                        alert(`✓ Package #${order.id} picked up!\nStatus updated to "Shipped / Out for Delivery".`);
+                        showAlert('Package Picked Up', `✓ Package #${order.id} picked up!\nStatus updated to "Shipped / Out for Delivery".`, 'success');
                       }}
                     >
                       <Truck size={16} /> Pick Up Package & Start Delivery
@@ -479,7 +479,7 @@ export const DeliveryView = () => {
                         style={{ flex: 1, fontSize: '0.82rem', padding: '0.55rem' }}
                         onClick={() => {
                           driverProcessDelivery(order.id, 'Delivered');
-                          alert(`✓ Order #${order.id} marked as DELIVERED!\nVendor payout balance has been credited.`);
+                          showAlert('Delivery Completed', `✓ Order #${order.id} marked as DELIVERED!\nVendor payout balance has been credited.`, 'success');
                         }}
                       >
                         <CheckCircle2 size={16} /> Mark Delivered
@@ -490,7 +490,7 @@ export const DeliveryView = () => {
                         style={{ flex: 1, fontSize: '0.82rem', padding: '0.55rem' }}
                         onClick={() => {
                           driverProcessDelivery(order.id, 'Delivery Failed');
-                          alert(` Order #${order.id} marked as Delivery Failed.\nCustomer 3 Working Days refund policy initiated.`);
+                          showAlert('Delivery Attempt Failed', `Order #${order.id} marked as Delivery Failed.\nCustomer 3 Working Days refund policy initiated.`, 'error');
                         }}
                       >
                         <XCircle size={16} /> Delivery Failed

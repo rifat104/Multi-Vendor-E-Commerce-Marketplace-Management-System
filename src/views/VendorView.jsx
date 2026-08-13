@@ -38,6 +38,7 @@ export const VendorView = () => {
     deleteProduct,
     vendorProcessOrder,
     updateVendorProfile,
+    showAlert,
   } = useApp();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -109,8 +110,10 @@ export const VendorView = () => {
   const availableBalance = Math.max(0, netEarnings - approvedPayoutsSum);
 
   const handleDownloadReport = () => {
-    alert(
-      `Business Analytics Report for ${vendor.name}\n\nGross Sales: BDT ${grossSales.toLocaleString()}\nNet Payout: BDT ${netEarnings.toLocaleString()}\nWithdrawn Payouts: BDT ${approvedPayoutsSum.toLocaleString()}\nAvailable Balance: BDT ${availableBalance.toLocaleString()}`
+    showAlert(
+      'Business Analytics Report',
+      `Business Analytics Report for ${vendor.name}\n\nGross Sales: BDT ${grossSales.toLocaleString()}\nNet Payout: BDT ${netEarnings.toLocaleString()}\nWithdrawn Payouts: BDT ${approvedPayoutsSum.toLocaleString()}\nAvailable Balance: BDT ${availableBalance.toLocaleString()}`,
+      'info'
     );
   };
 
@@ -148,7 +151,7 @@ export const VendorView = () => {
       bankDetails,
     });
     setIsEditProfileOpen(false);
-    alert('Store profile, logo, and banner updated successfully!');
+    showAlert('Profile Updated', 'Store profile, logo, and banner updated successfully!', 'success');
   };
 
   const handleCreateStoreVoucher = (e) => {
@@ -164,7 +167,7 @@ export const VendorView = () => {
     });
 
     if (res.success) {
-      alert(res.message);
+      showAlert('Voucher Published', res.message, 'success');
       setIsAddVoucherOpen(false);
       setVCode('');
       setVAmount('10');
@@ -188,7 +191,7 @@ export const VendorView = () => {
 
     const res = requestVendorPayout(vendor.id, vendor.name, amountNum, payoutBankDetails || vendor.bankDetails);
     if (res.success) {
-      alert(res.message);
+      showAlert('Payout Requested', res.message, 'success');
       setIsPayoutModalOpen(false);
       setPayoutAmount('500');
       setPayoutMessage('');

@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Lock, ArrowRight, Store, Truck, UserCheck, Eye, EyeOff } from 'lucide-react';
 
 export const LoginModal = ({ isOpen, onClose }) => {
-  const { login, registerUser, registerDeliveryAgent } = useApp();
+  const { login, registerUser, registerDeliveryAgent, showAlert } = useApp();
 
   const [isRegister, setIsRegister] = useState(false);
 
@@ -104,8 +104,10 @@ export const LoginModal = ({ isOpen, onClose }) => {
     setError('');
     onClose();
     if (isVendorReg || isDeliveryReg) {
-      alert(
-        'Registration successful! Your application is pending Admin approval. You will see your request on the Admin Dashboard under Pending Approvals!'
+      showAlert(
+        'Registration Submitted',
+        'Registration successful! Your application is pending Admin approval. You will see your request on the Admin Dashboard under Pending Approvals!',
+        'success'
       );
     }
   };

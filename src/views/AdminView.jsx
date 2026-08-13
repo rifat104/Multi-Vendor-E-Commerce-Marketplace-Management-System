@@ -44,6 +44,7 @@ export const AdminView = () => {
     deliveryAgents,
     approveDeliveryAgent,
     suspendDeliveryAgent,
+    showAlert,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('mfs');
@@ -95,7 +96,7 @@ export const AdminView = () => {
       { email: newAdminEmail, name: newAdminName || newAdminEmail.split('@')[0], date: new Date().toISOString().split('T')[0] },
     ]);
 
-    alert(`New Administrator ${newAdminEmail} created successfully!`);
+    showAlert('Admin Created', `New Administrator ${newAdminEmail} created successfully!`, 'success');
     setIsAddAdminOpen(false);
     setNewAdminEmail('');
     setNewAdminPass('');
@@ -115,7 +116,7 @@ export const AdminView = () => {
     });
 
     if (res.success) {
-      alert(res.message);
+      showAlert('Voucher Published', res.message, 'success');
       setIsAddVoucherOpen(false);
       setVCode('');
       setVAmount('10');
@@ -130,13 +131,17 @@ export const AdminView = () => {
 
     if (selectedPayoutVerify.type === 'delivery') {
       processDeliveryPayout(selectedPayoutVerify.id, true, payoutTrxId, payoutNote);
-      alert(
-        `✓ Delivery Rider Commission Payout Verified & Released!\nBDT ${selectedPayoutVerify.amount.toLocaleString()} transferred to rider ${selectedPayoutVerify.driverName} and deducted from commission balance.`
+      showAlert(
+        'Commission Payout Released',
+        `✓ Delivery Rider Commission Payout Verified & Released!\nBDT ${selectedPayoutVerify.amount.toLocaleString()} transferred to rider ${selectedPayoutVerify.driverName} and deducted from commission balance.`,
+        'success'
       );
     } else {
       processVendorPayout(selectedPayoutVerify.id, true, payoutTrxId, payoutNote);
-      alert(
-        `✓ Vendor Seller Payout Verified & Released!\nBDT ${selectedPayoutVerify.amount.toLocaleString()} transferred to ${selectedPayoutVerify.vendorName} and deducted from seller payout balance.`
+      showAlert(
+        'Seller Payout Released',
+        `✓ Vendor Seller Payout Verified & Released!\nBDT ${selectedPayoutVerify.amount.toLocaleString()} transferred to ${selectedPayoutVerify.vendorName} and deducted from seller payout balance.`,
+        'success'
       );
     }
 
@@ -150,8 +155,10 @@ export const AdminView = () => {
     if (!selectedRefundVerify) return;
 
     processCustomerRefund(selectedRefundVerify.id, true, refundTrxId, refundNote);
-    alert(
-      `✓ Customer Refund Released!\nBDT ${selectedRefundVerify.total.toLocaleString()} transferred to customer ${selectedRefundVerify.customerName} via ${selectedRefundVerify.paymentMethod}.`
+    showAlert(
+      'Customer Refund Released & Status Done',
+      `✓ Customer Refund Released!\nBDT ${selectedRefundVerify.total.toLocaleString()} transferred to customer ${selectedRefundVerify.customerName} via ${selectedRefundVerify.paymentMethod}. Status set to Done.`,
+      'success'
     );
 
     setSelectedRefundVerify(null);
@@ -852,7 +859,7 @@ export const AdminView = () => {
                               style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
                               onClick={() => {
                                 approveDeliveryAgent(d.id);
-                                alert(`✓ Delivery Rider "${d.name}" APPROVED successfully!\nAccount activated for Logistics Dashboard access.`);
+                                showAlert('Rider Approved', `✓ Delivery Rider "${d.name}" APPROVED successfully!\nAccount activated for Logistics Dashboard access.`, 'success');
                               }}
                             >
                               <CheckCircle2 size={14} /> Approve Rider
@@ -928,7 +935,7 @@ export const AdminView = () => {
                           style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
                           onClick={() => {
                             approveDeliveryAgent(d.id);
-                            alert(`✓ Delivery Rider "${d.name}" APPROVED successfully!\nAccount activated for Logistics Dashboard access.`);
+                            showAlert('Rider Approved', `✓ Delivery Rider "${d.name}" APPROVED successfully!\nAccount activated for Logistics Dashboard access.`, 'success');
                           }}
                         >
                           Approve Rider
@@ -1104,7 +1111,7 @@ export const AdminView = () => {
                           style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', color: 'var(--accent-rose)' }}
                           onClick={() => {
                             suspendVendor(v.id);
-                            alert(`⚠️ Vendor store "${v.name}" has been SUSPENDED!\nAll products from this vendor are now hidden from the public marketplace.`);
+                            showAlert('Store Suspended', `⚠️ Vendor store "${v.name}" has been SUSPENDED!\nAll products from this vendor are now hidden from the public marketplace.`, 'error');
                           }}
                         >
                           <Ban size={12} /> Suspend Store
@@ -1115,7 +1122,7 @@ export const AdminView = () => {
                           style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
                           onClick={() => {
                             approveVendor(v.id);
-                            alert(`✓ Vendor store "${v.name}" has been APPROVED!\nProducts are now visible on the public marketplace.`);
+                            showAlert('Store Approved', `✓ Vendor store "${v.name}" has been APPROVED!\nProducts are now visible on the public marketplace.`, 'success');
                           }}
                         >
                           Approve Store

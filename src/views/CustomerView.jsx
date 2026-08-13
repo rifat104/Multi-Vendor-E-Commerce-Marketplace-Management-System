@@ -28,7 +28,7 @@ export const CustomerView = ({
   selectedCategory: externalCategory,
   setSelectedCategory: externalSetCategory,
 }) => {
-  const { products, categories, orders, currentUser, addToCart, vendors, retryPayment, reviews, archiveOrder } = useApp();
+  const { products, categories, orders, currentUser, addToCart, vendors, retryPayment, reviews, archiveOrder, showAlert } = useApp();
 
   const [internalCategory, setInternalCategory] = useState('all');
   const selectedCategory = externalCategory !== undefined ? externalCategory : internalCategory;
@@ -125,13 +125,13 @@ export const CustomerView = ({
 
   const handleRetrySubmit = (orderId) => {
     if ((retryMethod === 'bKash' || retryMethod === 'Nagad') && !retryTrxId) {
-      alert('Please enter your TrxID.');
+      showAlert('TrxID Required', 'Please enter your payment Transaction ID.', 'error');
       return;
     }
     retryPayment(orderId, retryMethod, retryTrxId);
     setRetryOrderId(null);
     setRetryTrxId('');
-    alert('Payment retried! Order updated for MFS Admin Verification.');
+    showAlert('Payment Resubmitted', 'Payment retried! Order updated for MFS Admin Verification.', 'success');
   };
 
   return (
@@ -700,7 +700,7 @@ export const CustomerView = ({
                         style={{ fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem 0.85rem' }}
                         onClick={() => {
                           archiveOrder(order.id);
-                          alert(`✓ Order #${order.id} tracking completed & cleared!`);
+                          showAlert('Tracking Cleared', `✓ Order #${order.id} tracking completed & cleared!`, 'success');
                         }}
                       >
                         <CheckCircle2 size={14} /> Clear Order Tracking
@@ -741,7 +741,7 @@ export const CustomerView = ({
                             style={{ fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem 0.85rem', whiteSpace: 'nowrap' }}
                             onClick={() => {
                               archiveOrder(order.id);
-                              alert(`✓ Refund for Order #${order.id} acknowledged and tracking cleared!`);
+                              showAlert('Refund Tracking Cleared', `✓ Refund for Order #${order.id} acknowledged and tracking cleared!`, 'success');
                             }}
                           >
                             <CheckCircle2 size={15} /> Clear Refund Tracking
