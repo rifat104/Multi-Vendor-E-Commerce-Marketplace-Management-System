@@ -48,8 +48,9 @@ export const Navbar = ({
         // Customer or Delivery Rider
         return (
           n.targetUserId === currentUser.id ||
+          (n.targetUserEmail && currentUser.email && n.targetUserEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
           (n.targetRole === 'Customer' && (!n.targetUserId || n.targetUserId === currentUser.id)) ||
-          (n.targetRole === 'Delivery' && n.targetUserId === currentUser.id)
+          (n.targetRole === 'Delivery' && (n.targetUserId === currentUser.id || n.targetUserEmail === currentUser.email))
         );
       });
 

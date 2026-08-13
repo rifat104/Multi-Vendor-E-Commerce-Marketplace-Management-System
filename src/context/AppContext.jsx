@@ -867,6 +867,7 @@ export const AppProvider = ({ children }) => {
   const verifyMFSOrder = (orderId, isApproved, note = '') => {
     const now = new Date();
     const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
+    const targetOrder = orders.find((o) => o.id === orderId);
 
     setOrders((prevOrders) =>
       prevOrders.map((order) => {
@@ -896,11 +897,33 @@ export const AppProvider = ({ children }) => {
         return order;
       })
     );
+
+    if (targetOrder) {
+      const notifTitle = isApproved ? 'MFS Payment Verified! 💳' : 'MFS Payment Failed ⚠️';
+      const notifMsg = isApproved
+        ? `Your ${targetOrder.paymentMethod} payment for Order #${targetOrder.id} has been verified by Admin. Order is confirmed!`
+        : `Admin could not verify TrxID ${targetOrder.paymentTrxId} for Order #${targetOrder.id}. Order has been cancelled.`;
+
+      setNotifications((prev) => [
+        {
+          id: `n-${Date.now()}`,
+          title: notifTitle,
+          message: notifMsg,
+          targetRole: 'Customer',
+          targetUserId: targetOrder.customerId,
+          targetUserEmail: targetOrder.customerEmail,
+          time: 'Just now',
+          read: false,
+        },
+        ...prev,
+      ]);
+    }
   };
 
   const vendorProcessOrder = (orderId, action, note = '') => {
     const now = new Date();
     const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
+    const targetOrder = orders.find((o) => o.id === orderId);
 
     setOrders((prevOrders) =>
       prevOrders.map((order) => {
@@ -929,12 +952,35 @@ export const AppProvider = ({ children }) => {
         return order;
       })
     );
+
+    if (targetOrder) {
+      const isAccept = action === 'accept';
+      const notifTitle = isAccept ? 'Order Packed & Accepted! 📦' : 'Order Cancelled by Seller ❌';
+      const notifMsg = isAccept
+        ? `Seller has packed your items for Order #${targetOrder.id}. Status is now "Processing"!`
+        : `Seller was unable to fulfill Order #${targetOrder.id}. Customer refund has been processed.`;
+
+      setNotifications((prev) => [
+        {
+          id: `n-${Date.now()}`,
+          title: notifTitle,
+          message: notifMsg,
+          targetRole: 'Customer',
+          targetUserId: targetOrder.customerId,
+          targetUserEmail: targetOrder.customerEmail,
+          time: 'Just now',
+          read: false,
+        },
+        ...prev,
+      ]);
+    }
   };
 
   const driverProcessDelivery = (orderId, action, driverName = 'Jalal Uddin', note = '') => {
     const now = new Date();
     const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
     const actualDriver = (currentUser && currentUser.name) || driverName || 'Delivery Courier';
+    const targetOrder = orders.find((o) => o.id === orderId);
 
     setOrders((prevOrders) =>
       prevOrders.map((order) => {
@@ -975,6 +1021,38 @@ export const AppProvider = ({ children }) => {
         return order;
       })
     );
+
+    if (targetOrder) {
+      let notifTitle = '';
+      let notifMsg = '';
+
+      if (action === 'Shipped' || action === 'accept_task' || action === 'pickup') {
+        notifTitle = 'Package Out for Delivery! 🚚';
+        notifMsg = `Rider ${actualDriver} has picked up your package for Order #${targetOrder.id}! Delivery is in progress to ${targetOrder.shippingAddress}.`;
+      } else if (action === 'Delivered' || action === 'deliver_success') {
+        notifTitle = 'Package Delivered Successfully! 🎁';
+        notifMsg = `Great news! Your Order #${targetOrder.id} has been delivered by ${actualDriver}. Thank you for shopping on Kinbo!`;
+      } else if (action === 'Delivery Failed' || action === 'deliver_failed') {
+        notifTitle = 'Delivery Attempt Failed ⚠️';
+        notifMsg = `Rider ${actualDriver} was unable to complete delivery for Order #${targetOrder.id}. Refund process active (3 Working Days).`;
+      }
+
+      if (notifTitle) {
+        setNotifications((prev) => [
+          {
+            id: `n-${Date.now()}`,
+            title: notifTitle,
+            message: notifMsg,
+            targetRole: 'Customer',
+            targetUserId: targetOrder.customerId,
+            targetUserEmail: targetOrder.customerEmail,
+            time: 'Just now',
+            read: false,
+          },
+          ...prev,
+        ]);
+      }
+    }
   };
 
   const retryPayment = (orderId, newPaymentMethod, newPaymentTrxId = '') => {
