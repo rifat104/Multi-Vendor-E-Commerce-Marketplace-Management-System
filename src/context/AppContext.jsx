@@ -316,9 +316,10 @@ export const AppProvider = ({ children }) => {
       );
 
       const effectiveRole = isApprovedRider ? 'delivery' : (matchedUser.role || 'customer');
+      const userId = matchedUser.id || `u-${matchedUser.email.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
       const loggedUser = {
-        id: matchedUser.id || `u-${Date.now()}`,
+        id: userId,
         name: matchedUser.name,
         email: matchedUser.email,
         phone: matchedUser.phone || '+8801700000000',
@@ -345,7 +346,10 @@ export const AppProvider = ({ children }) => {
   };
 
   const registerUser = (userData) => {
+    const userId = `u-${userData.email.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+
     const newUserAccount = {
+      id: userId,
       name: userData.name,
       phone: userData.phone,
       email: userData.email,
@@ -353,7 +357,7 @@ export const AppProvider = ({ children }) => {
       role: 'customer',
     };
 
-    setUserAccounts((prev) => [...prev, newUserAccount]);
+    setUserAccounts((prev) => [...prev.filter((u) => u.email.toLowerCase() !== userData.email.toLowerCase()), newUserAccount]);
 
     if (userData.isVendor) {
       registerVendor({
@@ -370,7 +374,7 @@ export const AppProvider = ({ children }) => {
     }
 
     const loggedUser = {
-      id: `u-${Date.now()}`,
+      id: userId,
       name: userData.name,
       email: userData.email,
       phone: userData.phone,

@@ -61,7 +61,12 @@ export const CustomerView = ({
     return () => clearInterval(timer);
   }, []);
 
-  const customerOrders = orders.filter((o) => o.customerId === currentUser.id);
+  const customerOrders = orders.filter((o) => {
+    if (o.customerId && currentUser.id && o.customerId === currentUser.id) return true;
+    if (o.customerEmail && currentUser.email && o.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
+    if (o.customerPhone && currentUser.phone && o.customerPhone === currentUser.phone) return true;
+    return false;
+  });
 
   // Exclude products belonging to Suspended Vendors
   const activeProducts = products.filter((p) => {
