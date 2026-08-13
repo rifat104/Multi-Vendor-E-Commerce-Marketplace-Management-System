@@ -38,6 +38,7 @@ export const AdminView = () => {
     approveVendor,
     suspendVendor,
     verifyMFSOrder,
+    processCustomerRefund,
     deliveryAgents,
     approveDeliveryAgent,
     suspendDeliveryAgent,
@@ -52,6 +53,11 @@ export const AdminView = () => {
   const [selectedPayoutVerify, setSelectedPayoutVerify] = useState(null);
   const [payoutTrxId, setPayoutTrxId] = useState('');
   const [payoutNote, setPayoutNote] = useState('');
+
+  // Admin Customer Refund Verification Modal State
+  const [selectedRefundVerify, setSelectedRefundVerify] = useState(null);
+  const [refundTrxId, setRefundTrxId] = useState('');
+  const [refundNote, setRefundNote] = useState('');
 
   // Admin Account Creation State
   const [newAdminEmail, setNewAdminEmail] = useState('');
@@ -136,6 +142,24 @@ export const AdminView = () => {
     setPayoutTrxId('');
     setPayoutNote('');
   };
+
+  const handleConfirmRefundRelease = (e) => {
+    e.preventDefault();
+    if (!selectedRefundVerify) return;
+
+    processCustomerRefund(selectedRefundVerify.id, true, refundTrxId, refundNote);
+    alert(
+      `✓ Customer Refund Released!\nBDT ${selectedRefundVerify.total.toLocaleString()} transferred to customer ${selectedRefundVerify.customerName} via ${selectedRefundVerify.paymentMethod}.`
+    );
+
+    setSelectedRefundVerify(null);
+    setRefundTrxId('');
+    setRefundNote('');
+  };
+
+  const pendingRefundOrders = orders.filter(
+    (o) => o.status === 'Cancelled' && (o.paymentStatus === 'Pending Refund' || o.paymentStatus === 'Paid')
+  );
 
   return (
     <div>
@@ -578,6 +602,87 @@ export const AdminView = () => {
               </table>
             </div>
           )}
+
+          {/* Customer Refund Verification Console (Vendor Cancelled Orders) */}
+          <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-color)' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#c2410c', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <AlertTriangle size={18} />
+              Vendor Cancelled Orders — Customer Refund Approval Desk ({pendingRefundOrders.length})
+            </h3>
+
+            {pendingRefundOrders.length === 0 ? (
+              <div className="card" style={{ textAlign: 'center', padding: '2.5rem' }}>
+                <CheckCircle2 size={40} style={{ color: 'var(--accent-emerald)', marginBottom: '0.5rem' }} />
+                <h4 style={{ color: 'var(--text-main)' }}>No Pending Customer Refunds</h4>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                  All cancelled orders have been processed and refunded to customers.
+                </p>
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Order ID</th>
+                      <th>Customer Info</th>
+                      <th>Payment Channel & Original TrxID</th>
+                      <th>Refund Amount</th>
+                      <th>Status</th>
+                      <th>Admin Refund Approval Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingRefundOrders.map((order) => (
+                      <tr key={order.id}>
+                        <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>#{order.id}</td>
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{order.customerName}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{order.customerPhone} ({order.customerEmail})</div>
+                        </td>
+                        <td>
+                          <span className="badge badge-pending" style={{ background: '#fce7f3', color: '#be185d' }}>
+                            {order.paymentMethod}
+                          </span>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: 2 }}>
+                            TrxID: {order.paymentTrxId || 'N/A'}
+                          </div>
+                        </td>
+                        <td style={{ fontWeight: 800, color: '#c2410c' }}>BDT {order.total.toLocaleString()}</td>
+                        <td>
+                          <span className="badge badge-pending" style={{ background: '#fff7ed', color: '#c2410c', fontWeight: 800 }}>
+                            {order.paymentStatus || 'Pending Refund'}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              className="btn btn-success"
+                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                              onClick={() => {
+                                setSelectedRefundVerify(order);
+                                setRefundTrxId(`REF-TRX-${Math.floor(100000 + Math.random() * 900000)}`);
+                                setRefundNote(`Admin verified ${order.paymentMethod} refund release.`);
+                              }}
+                            >
+                              <CheckSquare size={14} /> Approve & Issue Refund
+                            </button>
+
+                            <button
+                              className="btn btn-danger"
+                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+                              onClick={() => processCustomerRefund(order.id, false, '', 'Refund declined by Admin')}
+                            >
+                              <XCircle size={14} /> Decline
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1151,6 +1256,71 @@ export const AdminView = () => {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Create Admin Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Refund Verification & Money Release Modal */}
+      {selectedRefundVerify && (
+        <div className="modal-overlay" onClick={() => setSelectedRefundVerify(null)}>
+          <div className="modal-content" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Approve & Issue Customer Refund</h3>
+              <button className="close-btn" onClick={() => setSelectedRefundVerify(null)}>
+                ✕
+              </button>
+            </div>
+
+            <div style={{ background: '#fff7ed', border: '1px solid #ffedd5', padding: '0.85rem', borderRadius: 'var(--radius-sm)', marginBottom: '1.25rem' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Customer Refund Receiver:</div>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                {selectedRefundVerify.customerName} ({selectedRefundVerify.customerPhone})
+              </div>
+              <div style={{ fontWeight: 800, fontSize: '1.4rem', color: '#c2410c', marginTop: '0.3rem' }}>
+                BDT {selectedRefundVerify.total.toLocaleString()}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                Refund Destination: <strong>{selectedRefundVerify.paymentMethod} (Original TrxID: {selectedRefundVerify.paymentTrxId || 'N/A'})</strong>
+              </div>
+            </div>
+
+            <form onSubmit={handleConfirmRefundRelease}>
+              <div className="form-group">
+                <label className="form-label">Refund Transfer TrxID / Reference No. *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  required
+                  placeholder="e.g. bKash Refund TrxID: BK91827A"
+                  value={refundTrxId}
+                  onChange={(e) => setRefundTrxId(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Refund Note to Customer</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Refund issued for vendor cancelled order"
+                  value={refundNote}
+                  onChange={(e) => setRefundNote(e.target.value)}
+                />
+              </div>
+
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', marginBottom: '1.25rem' }}>
+                ⚡ Confirming this will release <strong>BDT {selectedRefundVerify.total.toLocaleString()}</strong> to the customer's {selectedRefundVerify.paymentMethod} account and dispatch an instant notification!
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setSelectedRefundVerify(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-success">
+                  <CheckSquare size={16} /> Confirm & Issue Refund
                 </button>
               </div>
             </form>

@@ -1027,10 +1027,10 @@ export const AppProvider = ({ children }) => {
             return {
               ...order,
               status: 'Cancelled',
-              paymentStatus: 'Refunded',
+              paymentStatus: 'Pending Refund',
               statusLogs: [
                 ...(order.statusLogs || []),
-                { status: 'Cancelled', time: dateStr, note: note || 'Vendor cancelled order. Customer refunded.' },
+                { status: 'Cancelled', time: dateStr, note: note || 'Vendor cancelled order. Customer refund pending Admin approval.' },
               ],
             };
           }
@@ -1041,10 +1041,83 @@ export const AppProvider = ({ children }) => {
 
     if (targetOrder) {
       const isAccept = action === 'accept';
-      const notifTitle = isAccept ? 'Order Packed & Accepted! 📦' : 'Order Cancelled by Seller ❌';
-      const notifMsg = isAccept
-        ? `Seller has packed your items for Order #${targetOrder.id}. Status is now "Processing"!`
-        : `Seller was unable to fulfill Order #${targetOrder.id}. Customer refund has been processed.`;
+      if (isAccept) {
+        setNotifications((prev) => [
+          {
+            id: `n-${Date.now()}`,
+            title: 'Order Packed & Accepted! 📦',
+            message: `Seller has packed your items for Order #${targetOrder.id}. Status is now "Processing"!`,
+            targetRole: 'Customer',
+            targetUserId: targetOrder.customerId,
+            targetUserEmail: targetOrder.customerEmail,
+            time: 'Just now',
+            read: false,
+          },
+          ...prev,
+        ]);
+      } else {
+        // Send Admin Refund Alert
+        setNotifications((prev) => [
+          {
+            id: `n-${Date.now()}`,
+            title: '⚠️ Order Refund Required!',
+            message: `Vendor cancelled Order #${targetOrder.id} (BDT ${targetOrder.total.toLocaleString()} via ${targetOrder.paymentMethod}). Please approve customer refund release!`,
+            targetRole: 'Admin',
+            time: 'Just now',
+            read: false,
+          },
+          {
+            id: `n-${Date.now() + 1}`,
+            title: 'Order Cancelled by Seller ❌',
+            message: `Seller was unable to fulfill Order #${targetOrder.id}. Customer refund request of BDT ${targetOrder.total.toLocaleString()} has been submitted to Admin for approval.`,
+            targetRole: 'Customer',
+            targetUserId: targetOrder.customerId,
+            targetUserEmail: targetOrder.customerEmail,
+            time: 'Just now',
+            read: false,
+          },
+          ...prev,
+        ]);
+      }
+    }
+  };
+
+  const processCustomerRefund = (orderId, isApproved, refundTrxId = '', note = '') => {
+    const now = new Date();
+    const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
+    let targetOrder = null;
+
+    setOrders((prevOrders) =>
+      prevOrders.map((order) => {
+        if (order.id === orderId) {
+          targetOrder = order;
+          const finalStatus = isApproved ? 'Refunded' : 'Refund Rejected';
+          const defaultTrx = `REF-TRX-${Math.floor(100000 + Math.random() * 900000)}`;
+          const refRef = isApproved ? (refundTrxId || defaultTrx) : 'N/A';
+
+          return {
+            ...order,
+            paymentStatus: finalStatus,
+            refundRefTrxId: refRef,
+            statusLogs: [
+              ...(order.statusLogs || []),
+              {
+                status: finalStatus,
+                time: dateStr,
+                note: note || (isApproved ? `Admin approved & transferred BDT ${order.total.toLocaleString()} refund via ${order.paymentMethod} (Ref TrxID: ${refRef}).` : 'Admin rejected customer refund request.'),
+              },
+            ],
+          };
+        }
+        return order;
+      })
+    );
+
+    if (targetOrder) {
+      const notifTitle = isApproved ? 'Customer Refund Approved & Released! 💸' : 'Refund Request Rejected ❌';
+      const notifMsg = isApproved
+        ? `Great news! Admin approved & issued your refund of BDT ${targetOrder.total.toLocaleString()} for Order #${targetOrder.id} via ${targetOrder.paymentMethod}. Ref TrxID: ${refundTrxId || 'REF-RELEASED'}.`
+        : `Admin declined the refund request for Order #${targetOrder.id}. ${note || ''}`;
 
       setNotifications((prev) => [
         {
@@ -1295,6 +1368,7 @@ export const AppProvider = ({ children }) => {
         clearCart,
         placeOrder,
         verifyMFSOrder,
+        processCustomerRefund,
         vendorProcessOrder,
         driverProcessDelivery,
         retryPayment,

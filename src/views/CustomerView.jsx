@@ -686,10 +686,29 @@ export const CustomerView = ({
                     </div>
                   )}
 
-                  {/* 3 Working Days Refund Guarantee Notice */}
+                  {/* Refund Status Notice */}
                   {order.status === 'Cancelled' && (
-                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', marginBottom: '1rem', fontSize: '0.78rem', fontWeight: 600 }}>
-                      🛡️ Refund Policy Notice: Order cancelled. Your payment refund of BDT {order.total.toLocaleString()} will be returned to your bKash / Nagad account within 3 Working Days (72 Hours).
+                    <div
+                      style={{
+                        background: order.paymentStatus === 'Refunded' ? '#f0fdf4' : '#fff7ed',
+                        border: `1px solid ${order.paymentStatus === 'Refunded' ? '#bbf7d0' : '#ffedd5'}`,
+                        color: order.paymentStatus === 'Refunded' ? '#166534' : '#c2410c',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: 'var(--radius-sm)',
+                        marginBottom: '1rem',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {order.paymentStatus === 'Refunded' ? (
+                        <div>
+                          💸 <strong>Refund Released & Transferred!</strong> BDT {order.total.toLocaleString()} has been returned to your {order.paymentMethod} account (Ref TrxID: {order.refundRefTrxId || 'REF-RELEASED'}).
+                        </div>
+                      ) : (
+                        <div>
+                          ⏳ <strong>Refund Pending Admin Approval:</strong> Seller cancelled order. BDT {order.total.toLocaleString()} refund is being verified by Admin and will be transferred to your {order.paymentMethod} account shortly.
+                        </div>
+                      )}
                     </div>
                   )}
 
