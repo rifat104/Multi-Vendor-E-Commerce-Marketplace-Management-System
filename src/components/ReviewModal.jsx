@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { X, Star } from 'lucide-react';
 
-export const ReviewModal = ({ isOpen, onClose, product }) => {
+export const ReviewModal = ({ isOpen, onClose, product, onSuccessReview }) => {
   const { addReview } = useApp();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
@@ -13,12 +13,22 @@ export const ReviewModal = ({ isOpen, onClose, product }) => {
     e.preventDefault();
     if (!comment) return;
 
-    addReview({
+    const res = addReview({
       productId: product.productId || product.id,
+      orderId: product.orderId || 'N/A',
       rating,
       comment,
     });
 
+    if (res && !res.success) {
+      alert(`❌ ${res.message}`);
+      return;
+    }
+
+    alert('✓ Thank you! Your product review has been submitted successfully.');
+    if (onSuccessReview) {
+      onSuccessReview(product.orderId);
+    }
     onClose();
     setComment('');
   };

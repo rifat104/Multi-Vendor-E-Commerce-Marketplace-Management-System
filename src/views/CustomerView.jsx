@@ -28,7 +28,7 @@ export const CustomerView = ({
   selectedCategory: externalCategory,
   setSelectedCategory: externalSetCategory,
 }) => {
-  const { products, categories, orders, currentUser, addToCart, vendors, retryPayment } = useApp();
+  const { products, categories, orders, currentUser, addToCart, vendors, retryPayment, reviews, archiveOrder } = useApp();
 
   const [internalCategory, setInternalCategory] = useState('all');
   const selectedCategory = externalCategory !== undefined ? externalCategory : internalCategory;
@@ -46,8 +46,8 @@ export const CustomerView = ({
   const [retryMethod, setRetryMethod] = useState('bKash');
   const [retryTrxId, setRetryTrxId] = useState('');
 
-  // Flash Sale Countdown
-  const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 32, seconds: 45 });
+  // Flash Sale Timer State (Counts down to midnight)
+  const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 12, seconds: 45 });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -61,7 +61,9 @@ export const CustomerView = ({
     return () => clearInterval(timer);
   }, []);
 
+  // Filter Active Order Tracking (Exclude archived/cleared tracking orders)
   const customerOrders = orders.filter((o) => {
+    if (o.isArchived) return false;
     if (o.customerId && currentUser.id && o.customerId === currentUser.id) return true;
     if (o.customerEmail && currentUser.email && o.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
     if (o.customerPhone && currentUser.phone && o.customerPhone === currentUser.phone) return true;
@@ -617,18 +619,72 @@ export const CustomerView = ({
                           </div>
                         </div>
 
-                        {order.status === 'Delivered' && (
-                          <button
-                            className="btn btn-outline"
-                            style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', marginLeft: '0.5rem' }}
-                            onClick={() => setReviewProduct(item)}
-                          >
-                            <Star size={12} fill="var(--accent-amber)" /> Rate Product
-                          </button>
-                        )}
+                        {order.status === 'Delivered' && (() => {
+                          const userEmail = currentUser?.email?.toLowerCase();
+                          const userId = currentUser?.id;
+                          const isReviewed = reviews.some(
+                            (r) =>
+                              (r.productId === item.productId || r.productId === item.id) &&
+                              ((userEmail && r.userEmail && r.userEmail.toLowerCase() === userEmail) || (userId && r.userId && r.userId === userId))
+                          );
+
+                          return isReviewed ? (
+                            <span
+                              className="badge badge-approved"
+                              style={{ fontSize: '0.72rem', background: '#dcfce7', color: '#15803d', fontWeight: 800 }}
+                            >
+                              ✓ Reviewed (1 Max)
+                            </span>
+                          ) : (
+                            <button
+                              className="btn btn-outline"
+                              style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', marginLeft: '0.5rem', fontWeight: 700 }}
+                              onClick={() => setReviewProduct({ ...item, orderId: order.id })}
+                            >
+                              <Star size={12} fill="var(--accent-amber)" /> Rate Product
+                            </button>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
+
+                  {/* Delivered Order Completion & Clear Tracking Action Banner */}
+                  {order.status === 'Delivered' && (
+                    <div
+                      style={{
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        color: '#166534',
+                        padding: '0.75rem 1rem',
+                        borderRadius: 'var(--radius-sm)',
+                        marginBottom: '1rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.85rem' }}>🎁 Delivery Completed</div>
+                        <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                          Once reviewed or acknowledged, click to clear this order from your active tracking queue.
+                        </div>
+                      </div>
+
+                      <button
+                        className="btn btn-success"
+                        style={{ fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem 0.85rem' }}
+                        onClick={() => {
+                          archiveOrder(order.id);
+                          alert(`✓ Order #${order.id} tracking completed & cleared!`);
+                        }}
+                      >
+                        <CheckCircle2 size={14} /> Clear Order Tracking
+                      </button>
+                    </div>
+                  )}
 
                   {/* 3 Working Days Refund Guarantee Notice */}
                   {order.status === 'Cancelled' && (
@@ -802,6 +858,11 @@ export const CustomerView = ({
           isOpen={true}
           product={reviewProduct}
           onClose={() => setReviewProduct(null)}
+          onSuccessReview={(orderIdToArchive) => {
+            if (orderIdToArchive && orderIdToArchive !== 'N/A') {
+              archiveOrder(orderIdToArchive);
+            }
+          }}
         />
       )}
     </div>

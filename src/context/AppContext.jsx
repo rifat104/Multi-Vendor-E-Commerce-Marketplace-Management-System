@@ -1193,17 +1193,50 @@ export const AppProvider = ({ children }) => {
     setProducts((prev) => prev.filter((p) => p.id !== productId));
   };
 
+  const archiveOrder = (orderId) => {
+    setOrders((prevOrders) =>
+      prevOrders.map((order) => {
+        if (order.id === orderId) {
+          return { ...order, isArchived: true };
+        }
+        return order;
+      })
+    );
+  };
+
   const addReview = (reviewData) => {
+    const prodId = reviewData.productId;
+    const userEmail = currentUser?.email?.toLowerCase() || '';
+    const userId = currentUser?.id || '';
+
+    // Check if customer already submitted a review for this product
+    const alreadyReviewed = reviews.some(
+      (r) =>
+        r.productId === prodId &&
+        ((userEmail && r.userEmail && r.userEmail.toLowerCase() === userEmail) ||
+          (userId && r.userId && r.userId === userId) ||
+          (reviewData.orderId && r.orderId && r.orderId === reviewData.orderId))
+    );
+
+    if (alreadyReviewed) {
+      return { success: false, message: 'You have already submitted a review for this product!' };
+    }
+
     const newReview = {
       id: `r-${Date.now()}`,
-      productId: reviewData.productId,
-      userName: currentUser.name,
+      productId: prodId,
+      orderId: reviewData.orderId || 'N/A',
+      userId: userId,
+      userEmail: userEmail,
+      userName: currentUser.name || 'Verified Customer',
       userRole: 'Customer',
       rating: Number(reviewData.rating),
       comment: reviewData.comment,
       date: new Date().toISOString().split('T')[0],
     };
+
     setReviews((prev) => [newReview, ...prev]);
+    return { success: true, message: 'Thank you for your feedback! Review published successfully.' };
   };
 
   // Notification Management Handlers
@@ -1275,6 +1308,7 @@ export const AppProvider = ({ children }) => {
         suspendDeliveryAgent,
         addProduct,
         deleteProduct,
+        archiveOrder,
         addReview,
       }}
     >
