@@ -34,6 +34,7 @@ export const AdminView = () => {
     deleteVoucher,
     payoutRequests,
     processVendorPayout,
+    processDeliveryPayout,
     approveVendor,
     suspendVendor,
     verifyMFSOrder,
@@ -43,6 +44,7 @@ export const AdminView = () => {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('mfs');
+  const [payoutSubTab, setPayoutSubTab] = useState('vendor');
   const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
   const [isAddVoucherOpen, setIsAddVoucherOpen] = useState(false);
 
@@ -118,10 +120,18 @@ export const AdminView = () => {
     e.preventDefault();
     if (!selectedPayoutVerify) return;
 
-    processVendorPayout(selectedPayoutVerify.id, true, payoutTrxId, payoutNote);
-    alert(
-      `Payment verified & released for ${selectedPayoutVerify.vendorName}!\nBDT ${selectedPayoutVerify.amount.toLocaleString()} has been cut from their net seller payout.`
-    );
+    if (selectedPayoutVerify.type === 'delivery') {
+      processDeliveryPayout(selectedPayoutVerify.id, true, payoutTrxId, payoutNote);
+      alert(
+        `✓ Delivery Rider Commission Payout Verified & Released!\nBDT ${selectedPayoutVerify.amount.toLocaleString()} transferred to rider ${selectedPayoutVerify.driverName} and deducted from commission balance.`
+      );
+    } else {
+      processVendorPayout(selectedPayoutVerify.id, true, payoutTrxId, payoutNote);
+      alert(
+        `✓ Vendor Seller Payout Verified & Released!\nBDT ${selectedPayoutVerify.amount.toLocaleString()} transferred to ${selectedPayoutVerify.vendorName} and deducted from seller payout balance.`
+      );
+    }
+
     setSelectedPayoutVerify(null);
     setPayoutTrxId('');
     setPayoutNote('');
@@ -293,87 +303,204 @@ export const AdminView = () => {
       {/* Sales Analytics & Visual Charts Console */}
       {activeTab === 'analytics' && <AdminAnalyticsConsole />}
 
-      {/* Module 1: Vendor Payouts Console & Verification */}
+      {/* Module 1: Vendor & Delivery Payouts Console & Verification */}
       {activeTab === 'payouts' && (
         <div>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ArrowUpRight size={18} style={{ color: 'var(--accent-emerald)' }} />
-            Vendor Seller Payout Verification & Money Release Desk
-          </h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ArrowUpRight size={18} style={{ color: 'var(--accent-emerald)' }} />
+              Platform Payout Verification & Money Release Desk
+            </h3>
 
-          {payoutRequests.length === 0 ? (
-            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-              <CheckCircle2 size={44} style={{ color: 'var(--accent-emerald)', marginBottom: '0.5rem' }} />
-              <h4 style={{ color: 'var(--text-main)' }}>No Vendor Payout Requests</h4>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className={`btn ${payoutSubTab === 'vendor' ? 'btn-primary' : 'btn-outline'}`}
+                style={{ fontSize: '0.82rem', fontWeight: 700 }}
+                onClick={() => setPayoutSubTab('vendor')}
+              >
+                <Store size={15} /> Vendor Store Payouts ({payoutRequests.filter((p) => p.type !== 'delivery').length})
+              </button>
+
+              <button
+                className={`btn ${payoutSubTab === 'delivery' ? 'btn-primary' : 'btn-outline'}`}
+                style={{ fontSize: '0.82rem', fontWeight: 700 }}
+                onClick={() => setPayoutSubTab('delivery')}
+              >
+                <Truck size={15} /> Delivery Rider Commission ({payoutRequests.filter((p) => p.type === 'delivery').length})
+              </button>
             </div>
-          ) : (
-            <div className="table-wrapper">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Payout ID</th>
-                    <th>Vendor Store</th>
-                    <th>Amount Requested</th>
-                    <th>Payout Account Details</th>
-                    <th>Request Date</th>
-                    <th>Status</th>
-                    <th>Admin Verification & Money Release</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payoutRequests.map((p) => (
-                    <tr key={p.id}>
-                      <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>#{p.id}</td>
-                      <td style={{ fontWeight: 700, color: 'var(--text-main)' }}>{p.vendorName}</td>
-                      <td style={{ fontWeight: 800, color: 'var(--accent-emerald)' }}>BDT {p.amount.toLocaleString()}</td>
-                      <td>
-                        <div style={{ fontWeight: 600 }}>{p.bankDetails}</div>
-                      </td>
-                      <td>{p.date}</td>
-                      <td>
-                        <span className={`badge badge-${p.status === 'Approved' ? 'approved' : p.status === 'Rejected' ? 'cancelled' : 'pending'}`}>
-                          {p.status === 'Approved' ? 'Verified & Released' : p.status}
-                        </span>
-                      </td>
-                      <td>
-                        {p.status === 'Pending Admin Approval' ? (
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
-                              className="btn btn-success"
-                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
-                              onClick={() => {
-                                setSelectedPayoutVerify(p);
-                                setPayoutTrxId(`TRX-${Math.floor(100000 + Math.random() * 900000)}`);
-                                setPayoutNote('Admin verified bKash merchant payout transfer.');
-                              }}
-                            >
-                              <CheckSquare size={14} /> Verify & Release Money
-                            </button>
-                            <button
-                              className="btn btn-danger"
-                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
-                              onClick={() => processVendorPayout(p.id, false, '', 'Rejected by Admin')}
-                            >
-                              <XCircle size={14} /> Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <div>
-                            <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 800 }}>
-                              ✓ Money Released (Deducted from Seller Payout)
-                            </div>
-                            {p.transferRef && (
-                              <div style={{ fontSize: '0.72rem', color: 'var(--accent-blue)', fontWeight: 700, marginTop: 2 }}>
-                                Ref TrxID: {p.transferRef}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          </div>
+
+          {/* Sub-Tab 1: Vendor Store Payout Requests */}
+          {payoutSubTab === 'vendor' && (
+            <div>
+              {payoutRequests.filter((p) => p.type !== 'delivery').length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+                  <CheckCircle2 size={44} style={{ color: 'var(--accent-emerald)', marginBottom: '0.5rem' }} />
+                  <h4 style={{ color: 'var(--text-main)' }}>No Vendor Payout Requests</h4>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Payout ID</th>
+                        <th>Vendor Store</th>
+                        <th>Amount Requested</th>
+                        <th>Payout Account Details</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th>Admin Verification & Money Release</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payoutRequests
+                        .filter((p) => p.type !== 'delivery')
+                        .map((p) => (
+                          <tr key={p.id}>
+                            <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>#{p.id}</td>
+                            <td style={{ fontWeight: 700, color: 'var(--text-main)' }}>{p.vendorName}</td>
+                            <td style={{ fontWeight: 800, color: 'var(--accent-emerald)' }}>BDT {p.amount.toLocaleString()}</td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{p.bankDetails}</div>
+                            </td>
+                            <td>{p.date}</td>
+                            <td>
+                              <span className={`badge badge-${p.status === 'Approved' ? 'approved' : p.status === 'Rejected' ? 'cancelled' : 'pending'}`}>
+                                {p.status === 'Approved' ? 'Verified & Released' : p.status}
+                              </span>
+                            </td>
+                            <td>
+                              {p.status === 'Pending Admin Approval' ? (
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <button
+                                    className="btn btn-success"
+                                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+                                    onClick={() => {
+                                      setSelectedPayoutVerify(p);
+                                      setPayoutTrxId(`TRX-${Math.floor(100000 + Math.random() * 900000)}`);
+                                      setPayoutNote('Admin verified bKash merchant payout transfer.');
+                                    }}
+                                  >
+                                    <CheckSquare size={14} /> Verify & Release Money
+                                  </button>
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+                                    onClick={() => processVendorPayout(p.id, false, '', 'Rejected by Admin')}
+                                  >
+                                    <XCircle size={14} /> Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 800 }}>
+                                    ✓ Money Released (Deducted from Seller Payout)
+                                  </div>
+                                  {p.transferRef && (
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--accent-blue)', fontWeight: 700, marginTop: 2 }}>
+                                      Ref TrxID: {p.transferRef}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-Tab 2: Delivery Rider Commission Payout Requests */}
+          {payoutSubTab === 'delivery' && (
+            <div>
+              {payoutRequests.filter((p) => p.type === 'delivery').length === 0 ? (
+                <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+                  <CheckCircle2 size={44} style={{ color: 'var(--accent-emerald)', marginBottom: '0.5rem' }} />
+                  <h4 style={{ color: 'var(--text-main)' }}>No Delivery Rider Payout Requests</h4>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                    Delivery riders can request commission withdrawals (minimum 100 TK) from their logistics console.
+                  </p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Payout ID</th>
+                        <th>Delivery Rider</th>
+                        <th>Commission Requested</th>
+                        <th>Payout Channel & Details</th>
+                        <th>Request Date</th>
+                        <th>Status</th>
+                        <th>Admin Approval & Release</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payoutRequests
+                        .filter((p) => p.type === 'delivery')
+                        .map((p) => (
+                          <tr key={p.id}>
+                            <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>#{p.id}</td>
+                            <td>
+                              <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{p.driverName}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.driverPhone} ({p.driverEmail})</div>
+                            </td>
+                            <td style={{ fontWeight: 800, color: '#15803d' }}>BDT {p.amount.toLocaleString()}</td>
+                            <td>
+                              <span className="badge badge-shipped">{p.paymentMethod}</span>
+                              <div style={{ fontWeight: 600, fontSize: '0.82rem', marginTop: 2 }}>{p.accountDetails}</div>
+                            </td>
+                            <td>{p.date}</td>
+                            <td>
+                              <span className={`badge badge-${p.status === 'Approved' ? 'approved' : p.status === 'Rejected' ? 'cancelled' : 'pending'}`}>
+                                {p.status === 'Approved' ? 'Verified & Released' : p.status}
+                              </span>
+                            </td>
+                            <td>
+                              {p.status === 'Pending Admin Approval' || p.status === 'Pending' ? (
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <button
+                                    className="btn btn-success"
+                                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+                                    onClick={() => {
+                                      setSelectedPayoutVerify(p);
+                                      setPayoutTrxId(`TRX-${Math.floor(100000 + Math.random() * 900000)}`);
+                                      setPayoutNote(`Admin verified ${p.paymentMethod} rider commission transfer.`);
+                                    }}
+                                  >
+                                    <CheckSquare size={14} /> Verify & Release Money
+                                  </button>
+                                  <button
+                                    className="btn btn-danger"
+                                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+                                    onClick={() => processDeliveryPayout(p.id, false, '', 'Rejected by Admin')}
+                                  >
+                                    <XCircle size={14} /> Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <div>
+                                  <div style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 800 }}>
+                                    ✓ Money Released (Deducted from Rider Balance)
+                                  </div>
+                                  {p.transferRef && (
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--accent-blue)', fontWeight: 700, marginTop: 2 }}>
+                                      Ref TrxID: {p.transferRef}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

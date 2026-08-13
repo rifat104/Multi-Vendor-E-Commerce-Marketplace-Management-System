@@ -641,6 +641,92 @@ export const AppProvider = ({ children }) => {
     );
   };
 
+  // Delivery Rider Payout Request (Minimum BDT 100 requirement)
+  const requestDeliveryPayout = (driverId, driverName, driverEmail, driverPhone, amount, paymentMethod, accountDetails, note = '') => {
+    const numAmount = Number(amount);
+    if (numAmount < 100) {
+      return { success: false, message: 'Minimum delivery commission withdrawal amount is BDT 100.' };
+    }
+
+    const newPayout = {
+      id: `RPAY-${Math.floor(1000 + Math.random() * 9000)}`,
+      type: 'delivery',
+      driverId,
+      driverName,
+      driverEmail,
+      driverPhone,
+      amount: numAmount,
+      paymentMethod,
+      accountDetails,
+      note,
+      date: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`,
+      status: 'Pending Admin Approval',
+      transferRef: 'Pending Admin Transfer',
+    };
+
+    setPayoutRequests((prev) => [newPayout, ...prev]);
+
+    setNotifications((prev) => [
+      {
+        id: `n-${Date.now()}`,
+        title: 'New Delivery Rider Payout Request 🛵',
+        message: `Rider "${driverName}" requested a commission payout of BDT ${numAmount.toLocaleString()} via ${paymentMethod} (${accountDetails}).`,
+        targetRole: 'Admin',
+        time: 'Just now',
+        read: false,
+      },
+      ...prev,
+    ]);
+
+    return { success: true, message: `Withdrawal request of BDT ${numAmount.toLocaleString()} submitted to Admin for approval!` };
+  };
+
+  // Admin Processes & Verifies Delivery Rider Payout (Approve/Release/Reject)
+  const processDeliveryPayout = (payoutId, isApproved, transferRef = '', note = '') => {
+    let targetPayout = null;
+
+    setPayoutRequests((prev) =>
+      prev.map((p) => {
+        if (p.id === payoutId) {
+          targetPayout = p;
+          const updatedStatus = isApproved ? 'Approved' : 'Rejected';
+          const defaultTrx = `TRX-${Math.floor(100000 + Math.random() * 900000)}`;
+          const finalTrx = isApproved ? (transferRef || defaultTrx) : 'N/A';
+
+          return {
+            ...p,
+            status: updatedStatus,
+            transferRef: finalTrx,
+            adminNote: note || (isApproved ? 'Admin verified & released rider payout.' : 'Payout request rejected by Admin.'),
+            processedDate: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`,
+          };
+        }
+        return p;
+      })
+    );
+
+    if (targetPayout) {
+      const notifTitle = isApproved ? 'Delivery Commission Payout Approved! 🛵💰' : 'Rider Payout Request Rejected ❌';
+      const notifMsg = isApproved
+        ? `Admin approved & released your delivery commission payout #${payoutId} for BDT ${targetPayout.amount.toLocaleString()} via ${targetPayout.paymentMethod}. TrxID: ${transferRef || 'TRX-RELEASED'}. Funds deducted from your commission balance!`
+        : `Your payout request #${payoutId} for BDT ${targetPayout.amount.toLocaleString()} was rejected by Admin. ${note || ''}`;
+
+      setNotifications((nPrev) => [
+        {
+          id: `n-${Date.now()}`,
+          title: notifTitle,
+          message: notifMsg,
+          targetRole: 'Delivery',
+          targetUserId: targetPayout.driverId,
+          targetUserEmail: targetPayout.driverEmail,
+          time: 'Just now',
+          read: false,
+        },
+        ...nPrev,
+      ]);
+    }
+  };
+
   // Voucher Handlers: Login required to collect vouchers
   const collectVoucher = (code) => {
     if (!currentUser || !currentUser.isAuthenticated || currentUser.id === 'guest' || !currentUser.email) {
@@ -1168,6 +1254,8 @@ export const AppProvider = ({ children }) => {
         payoutRequests,
         requestVendorPayout,
         processVendorPayout,
+        requestDeliveryPayout,
+        processDeliveryPayout,
         addToCart,
         updateCartQuantity,
         removeFromCart,

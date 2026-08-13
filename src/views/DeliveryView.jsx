@@ -19,8 +19,15 @@ import {
 } from 'lucide-react';
 
 export const DeliveryView = () => {
-  const { orders, currentUser, deliveryAgents, driverProcessDelivery, logout } = useApp();
+  const { orders, currentUser, deliveryAgents, driverProcessDelivery, payoutRequests, requestDeliveryPayout, logout } = useApp();
   const [filterTab, setFilterTab] = useState('all');
+
+  // Withdraw Modal State
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState('100');
+  const [payoutMethod, setPayoutMethod] = useState('bKash');
+  const [accountDetails, setAccountDetails] = useState('');
+  const [withdrawNote, setWithdrawNote] = useState('');
 
   // Match logged in delivery rider account
   const currentRider =
@@ -40,6 +47,9 @@ export const DeliveryView = () => {
       completedDeliveries: 15,
     };
 
+  const currentRiderId = currentRider.id || currentUser.id;
+  const currentRiderEmail = currentRider.email || currentUser.email;
+
   // Show all customer shipments across the platform
   const allShipmentOrders = orders.filter((o) => o.status !== 'Cancelled');
 
@@ -52,7 +62,65 @@ export const DeliveryView = () => {
 
   const activeDeliveriesCount = allShipmentOrders.filter((o) => o.status === 'Shipped' || o.status === 'Processing' || o.status === 'Confirmed').length;
   const completedCount = allShipmentOrders.filter((o) => o.status === 'Delivered').length;
-  const deliveryFeesEarned = completedCount * 60; // BDT 60 per trip
+
+  // Driver Payout & Commission Calculations
+  const riderPayouts = payoutRequests.filter(
+    (p) =>
+      p.type === 'delivery' &&
+      (p.driverId === currentRiderId || (p.driverEmail && currentRiderEmail && p.driverEmail.toLowerCase() === currentRiderEmail.toLowerCase()))
+  );
+
+  const totalGrossCommission = completedCount * 60; // BDT 60 per trip
+  const approvedWithdrawn = riderPayouts
+    .filter((p) => p.status === 'Approved')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const pendingWithdrawal = riderPayouts
+    .filter((p) => p.status === 'Pending Admin Approval' || p.status === 'Pending')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const availableBalance = Math.max(0, totalGrossCommission - approvedWithdrawn - pendingWithdrawal);
+
+  const handleWithdrawSubmit = (e) => {
+    e.preventDefault();
+    const amountNum = Number(withdrawAmount);
+
+    if (amountNum < 100) {
+      alert('❌ Minimum delivery commission withdrawal amount is BDT 100.');
+      return;
+    }
+
+    if (amountNum > availableBalance) {
+      alert(`❌ Insufficient commission balance! Your available withdraw balance is BDT ${availableBalance.toLocaleString()}.`);
+      return;
+    }
+
+    if (!accountDetails.trim()) {
+      alert('❌ Please enter your payout account details (e.g., bKash Personal Number 017XXXXXX).');
+      return;
+    }
+
+    const res = requestDeliveryPayout(
+      currentRiderId,
+      currentRider.name,
+      currentRiderEmail,
+      currentRider.phone,
+      amountNum,
+      payoutMethod,
+      accountDetails.trim(),
+      withdrawNote.trim()
+    );
+
+    if (res.success) {
+      alert(`✓ ${res.message}`);
+      setIsWithdrawModalOpen(false);
+      setWithdrawAmount('100');
+      setAccountDetails('');
+      setWithdrawNote('');
+    } else {
+      alert(`❌ ${res.message}`);
+    }
+  };
 
   return (
     <div>
@@ -145,30 +213,117 @@ export const DeliveryView = () => {
             {completedCount} Trips
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Successfully delivered packages
+            BDT 60 per trip ({totalGrossCommission.toLocaleString()} TK Total)
           </div>
         </div>
 
-        <div className="card" style={{ borderLeft: '4px solid var(--accent-amber)' }}>
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>Delivery Commission Earned</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#b45309', marginTop: '0.3rem' }}>
-            BDT {deliveryFeesEarned.toLocaleString()}
+        <div className="card" style={{ borderLeft: '4px solid #10b981', background: '#f0fdf4' }}>
+          <div style={{ fontSize: '0.82rem', color: '#166534', fontWeight: 700 }}>Available Withdraw Balance</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#15803d', marginTop: '0.3rem' }}>
+            BDT {availableBalance.toLocaleString()}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            BDT 60 per completed delivery
-          </div>
+          <button
+            className="btn btn-success"
+            style={{ width: '100%', marginTop: '0.5rem', fontSize: '0.78rem', fontWeight: 800 }}
+            onClick={() => setIsWithdrawModalOpen(true)}
+          >
+            <DollarSign size={14} /> Request Payout (Min 100 TK)
+          </button>
         </div>
 
         <div className="card" style={{ borderLeft: '4px solid var(--accent-purple)' }}>
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>Rider Account Status</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#15803d', marginTop: '0.3rem' }}>
-            Active / ★ {currentRider.rating || 5.0}
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>Approved Cash Out Realized</div>
+          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-purple)', marginTop: '0.3rem' }}>
+            BDT {approvedWithdrawn.toLocaleString()}
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            Approved by System Administrator
+            Pending Admin: BDT {pendingWithdrawal.toLocaleString()}
           </div>
         </div>
       </div>
+
+      {/* Rider Commission Withdraw Modal */}
+      {isWithdrawModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsWithdrawModalOpen(false)}>
+          <div className="modal-content" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <DollarSign size={18} style={{ color: 'var(--accent-emerald)' }} /> Request Commission Withdrawal
+              </h3>
+              <button className="close-btn" onClick={() => setIsWithdrawModalOpen(false)}>
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleWithdrawSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '0.85rem', borderRadius: 'var(--radius-sm)' }}>
+                <div style={{ fontSize: '0.78rem', color: '#166534', fontWeight: 600 }}>Available Commission Balance:</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d', marginTop: 2 }}>
+                  BDT {availableBalance.toLocaleString()}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: '#166534', marginTop: 2 }}>
+                  ⚡ Minimum withdrawal requirement: BDT 100
+                </div>
+              </div>
+
+              <div>
+                <label className="form-label">Withdrawal Amount (BDT)</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  min="100"
+                  max={availableBalance}
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Enter amount (Min 100 TK)"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label">Payout Transfer Channel</label>
+                <select className="form-select" value={payoutMethod} onChange={(e) => setPayoutMethod(e.target.value)}>
+                  <option value="bKash">bKash Personal Account</option>
+                  <option value="Nagad">Nagad Personal Account</option>
+                  <option value="Bank Transfer">Bank Account Transfer</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label">Account Number & Receiver Details</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. 01712345678 (Personal bKash) or Dutch Bangla Bank AC"
+                  value={accountDetails}
+                  onChange={(e) => setAccountDetails(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label">Note to Admin (Optional)</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Weekly commission withdrawal"
+                  value={withdrawNote}
+                  onChange={(e) => setWithdrawNote(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button type="submit" className="btn btn-success" style={{ flex: 1, padding: '0.75rem', fontWeight: 800 }}>
+                  Submit Withdrawal Request
+                </button>
+                <button type="button" className="btn btn-outline" onClick={() => setIsWithdrawModalOpen(false)}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Filter Tabs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
