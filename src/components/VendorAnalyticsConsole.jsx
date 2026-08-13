@@ -30,19 +30,27 @@ export const VendorAnalyticsConsole = ({ vendor }) => {
   const commissionFee = Math.round((grossSales * (vendor.commissionRate || 5)) / 100);
   const netEarnings = grossSales - commissionFee;
 
-  // Monthly Sales Progression Data for this Vendor
-  const monthlyData = [
-    { month: 'Jan', sales: Math.round(grossSales * 0.08) },
-    { month: 'Feb', sales: Math.round(grossSales * 0.11) },
-    { month: 'Mar', sales: Math.round(grossSales * 0.14) },
-    { month: 'Apr', sales: Math.round(grossSales * 0.16) },
-    { month: 'May', sales: Math.round(grossSales * 0.12) },
-    { month: 'Jun', sales: Math.round(grossSales * 0.18) },
-    { month: 'Jul', sales: Math.round(grossSales * 0.21) },
-    { month: 'Aug', sales: grossSales || 15000 },
-  ];
+  // Calculate authentic monthly sales progression for this vendor
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  const monthlyData = monthNames.map((monthStr, index) => {
+    let monthTotal = 0;
+    vendorOrders.forEach((o) => {
+      if (o.status !== 'Cancelled') {
+        const orderDate = new Date(o.date || Date.now());
+        if (orderDate.getMonth() === index) {
+          const vItems = o.items.filter((i) => i.vendorId === vendor.id);
+          monthTotal += vItems.reduce((s, i) => s + i.price * i.quantity, 0);
+        }
+      }
+    });
+    // If order date was not set for earlier months, place total sales into current month
+    if (index === 7 && monthTotal === 0 && grossSales > 0) {
+      monthTotal = grossSales;
+    }
+    return { month: monthStr, sales: monthTotal };
+  });
 
-  const maxMonthlySales = Math.max(...monthlyData.map((d) => d.sales));
+  const maxMonthlySales = Math.max(1, ...monthlyData.map((d) => d.sales));
 
   // Top Selling Products Breakdown for this Vendor
   const productPerformance = vendorProducts.map((p) => {
@@ -52,7 +60,7 @@ export const VendorAnalyticsConsole = ({ vendor }) => {
     vendorOrders.forEach((o) => {
       if (o.status === 'Cancelled') return;
       o.items.forEach((item) => {
-        if (item.productId === p.id) {
+        if (item.productId === p.id || item.title === p.title) {
           unitsSold += item.quantity;
           revenue += item.price * item.quantity;
         }
@@ -65,11 +73,11 @@ export const VendorAnalyticsConsole = ({ vendor }) => {
       stock: p.stock,
       price: p.price,
       unitsSold,
-      revenue: revenue || Math.floor(10000 + Math.random() * 25000),
+      revenue,
     };
   }).sort((a, b) => b.revenue - a.revenue);
 
-  const maxProdRevenue = Math.max(...productPerformance.map((p) => p.revenue));
+  const maxProdRevenue = Math.max(1, ...productPerformance.map((p) => p.revenue));
 
   // CSV Report Generator for Vendor
   const downloadVendorReport = (type) => {

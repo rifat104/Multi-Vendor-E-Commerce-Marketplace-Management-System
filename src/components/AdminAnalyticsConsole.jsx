@@ -44,25 +44,27 @@ export const AdminAnalyticsConsole = () => {
 
     let sales = 0;
     orders.forEach((o) => {
-      o.items.forEach((item) => {
-        if (catProductIds.includes(item.productId)) {
-          sales += item.price * item.quantity;
-        }
-      });
+      if (o.status !== 'Cancelled') {
+        o.items.forEach((item) => {
+          if (catProductIds.includes(item.productId)) {
+            sales += item.price * item.quantity;
+          }
+        });
+      }
     });
 
     return {
       name: cat.name,
-      sales: sales || Math.floor(20000 + Math.random() * 50000),
+      sales: sales,
     };
   });
 
-  const totalCatSales = categorySales.reduce((sum, c) => sum + c.sales, 0);
+  const totalCatSales = Math.max(1, categorySales.reduce((sum, c) => sum + c.sales, 0));
   const categoryColors = ['#0284c7', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
 
   // Vendor Leaderboard Data
   const vendorPerformance = vendors.map((v) => {
-    const vOrders = orders.filter((o) => o.items.some((i) => i.vendorId === v.id));
+    const vOrders = orders.filter((o) => o.status !== 'Cancelled' && o.items.some((i) => i.vendorId === v.id));
     const vSales = vOrders.reduce((sum, o) => {
       const vItems = o.items.filter((i) => i.vendorId === v.id);
       return sum + vItems.reduce((s, i) => s + i.price * i.quantity, 0);
@@ -70,13 +72,13 @@ export const AdminAnalyticsConsole = () => {
 
     return {
       name: v.name,
-      sales: vSales || Math.floor(35000 + Math.random() * 80000),
-      ordersCount: vOrders.length || Math.floor(5 + Math.random() * 15),
+      sales: vSales,
+      ordersCount: vOrders.length,
       logo: v.logo,
     };
   }).sort((a, b) => b.sales - a.sales);
 
-  const maxVendorSales = Math.max(...vendorPerformance.map((v) => v.sales));
+  const maxVendorSales = Math.max(1, ...vendorPerformance.map((v) => v.sales));
 
   // CSV Report Generator
   const downloadReport = (type) => {
