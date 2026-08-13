@@ -15,6 +15,7 @@ export const AddProductModal = ({ isOpen, onClose }) => {
   const [stock, setStock] = useState('');
   const [image, setImage] = useState('');
   const [description, setDescription] = useState('');
+  const [isDragging, setIsDragging] = useState(false);
 
   if (!isOpen) return null;
 
@@ -26,6 +27,37 @@ export const AddProductModal = ({ isOpen, onClose }) => {
         setImage(reader.result);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImage(reader.result);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        alert('Please select an image file (PNG, JPG, WEBP).');
+      }
     }
   };
 
@@ -148,36 +180,64 @@ export const AddProductModal = ({ isOpen, onClose }) => {
             </div>
           </div>
 
-          {/* Direct File Upload Area */}
+          {/* Drag & Drop + Device Select Upload Area */}
           <div className="form-group">
-            <label className="form-label">Upload Product Image (Direct File Upload) *</label>
+            <label className="form-label">Upload Product Image (Drag & Drop or Select File) *</label>
             <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => document.getElementById('product-image-file-input').click()}
               style={{
-                border: '2px dashed var(--accent-blue-light)',
-                padding: '1.25rem',
-                borderRadius: 'var(--radius-sm)',
+                border: `2px dashed ${isDragging ? 'var(--accent-blue)' : 'var(--accent-blue-light)'}`,
+                padding: '1.5rem 1rem',
+                borderRadius: 'var(--radius-md)',
                 textAlign: 'center',
-                background: '#f8fafc',
+                background: isDragging ? '#e0f2fe' : '#f8fafc',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                boxShadow: isDragging ? '0 0 15px rgba(2, 132, 199, 0.25)' : 'none',
               }}
-              onClick={() => document.getElementById('product-image-file-input').click()}
             >
               {image ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
-                  <img src={image} alt="Product Preview" style={{ height: 110, borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border-color)' }} />
-                  <span style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: 700 }}>
-                    ✓ Image Uploaded Successfully! Click to replace image file.
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.6rem' }}>
+                  <img src={image} alt="Product Preview" style={{ height: 120, borderRadius: '8px', objectFit: 'cover', border: '2px solid var(--accent-blue-light)' }} />
+                  <span style={{ fontSize: '0.82rem', color: '#15803d', fontWeight: 800 }}>
+                    ✓ Photo Uploaded Successfully!
                   </span>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        document.getElementById('product-image-file-input').click();
+                      }}
+                    >
+                      Change Photo
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setImage('');
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div>
-                  <UploadCloud size={34} style={{ color: 'var(--accent-blue)', marginBottom: '0.4rem' }} />
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-main)' }}>
-                    Click to select & upload image file from your device
+                  <UploadCloud size={40} style={{ color: isDragging ? '#0284c7' : 'var(--accent-blue)', marginBottom: '0.5rem', transition: 'transform 0.2s ease', transform: isDragging ? 'scale(1.15)' : 'scale(1)' }} />
+                  <div style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text-main)' }}>
+                    {isDragging ? '📂 Drop your photo file here now!' : '📁 Drag & Drop photo here, or click to select from device'}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
-                    Supports PNG, JPG, WEBP formats (Direct file upload)
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                    Supports PNG, JPG, JPEG, WEBP files (Direct upload from phone or computer)
                   </div>
                 </div>
               )}
