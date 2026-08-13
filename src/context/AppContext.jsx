@@ -934,37 +934,40 @@ export const AppProvider = ({ children }) => {
   const driverProcessDelivery = (orderId, action, driverName = 'Jalal Uddin', note = '') => {
     const now = new Date();
     const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
+    const actualDriver = (currentUser && currentUser.name) || driverName || 'Delivery Courier';
 
     setOrders((prevOrders) =>
       prevOrders.map((order) => {
         if (order.id === orderId) {
-          if (action === 'accept_task') {
+          if (action === 'Shipped' || action === 'accept_task' || action === 'pickup') {
             return {
               ...order,
               status: 'Shipped',
-              deliveryDriver: driverName,
+              deliveryDriver: actualDriver,
               statusLogs: [
                 ...(order.statusLogs || []),
-                { status: 'Shipped', time: dateStr, note: note || `Driver ${driverName} picked up package.` },
+                { status: 'Shipped', time: dateStr, note: note || `Driver ${actualDriver} picked up package & started delivery.` },
               ],
             };
-          } else if (action === 'deliver_success') {
+          } else if (action === 'Delivered' || action === 'deliver_success') {
             return {
               ...order,
               status: 'Delivered',
               paymentStatus: 'Paid',
+              deliveryDriver: actualDriver,
               statusLogs: [
                 ...(order.statusLogs || []),
-                { status: 'Delivered', time: dateStr, note: `Delivered by ${driverName} successfully.` },
+                { status: 'Delivered', time: dateStr, note: note || `Package delivered by ${actualDriver} successfully.` },
               ],
             };
-          } else if (action === 'deliver_failed') {
+          } else if (action === 'Delivery Failed' || action === 'deliver_failed') {
             return {
               ...order,
               status: 'Delivery Failed',
+              deliveryDriver: actualDriver,
               statusLogs: [
                 ...(order.statusLogs || []),
-                { status: 'Delivery Failed', time: dateStr, note: note || `Delivery failed by ${driverName}.` },
+                { status: 'Delivery Failed', time: dateStr, note: note || `Delivery failed by ${actualDriver}.` },
               ],
             };
           }
