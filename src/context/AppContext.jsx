@@ -1091,7 +1091,7 @@ export const AppProvider = ({ children }) => {
       prevOrders.map((order) => {
         if (order.id === orderId) {
           targetOrder = order;
-          const finalStatus = isApproved ? 'Refunded' : 'Refund Rejected';
+          const finalStatus = isApproved ? 'Done' : 'Refund Rejected';
           const defaultTrx = `REF-TRX-${Math.floor(100000 + Math.random() * 900000)}`;
           const refRef = isApproved ? (refundTrxId || defaultTrx) : 'N/A';
 
@@ -1102,9 +1102,9 @@ export const AppProvider = ({ children }) => {
             statusLogs: [
               ...(order.statusLogs || []),
               {
-                status: finalStatus,
+                status: 'Refund Released & Done',
                 time: dateStr,
-                note: note || (isApproved ? `Admin approved & transferred BDT ${order.total.toLocaleString()} refund via ${order.paymentMethod} (Ref TrxID: ${refRef}).` : 'Admin rejected customer refund request.'),
+                note: note || (isApproved ? `Admin approved & transferred BDT ${order.total.toLocaleString()} refund via ${order.paymentMethod} (Ref TrxID: ${refRef}). Status set to Done.` : 'Admin rejected customer refund request.'),
               },
             ],
           };
@@ -1114,9 +1114,9 @@ export const AppProvider = ({ children }) => {
     );
 
     if (targetOrder) {
-      const notifTitle = isApproved ? 'Customer Refund Approved & Released! 💸' : 'Refund Request Rejected ❌';
+      const notifTitle = isApproved ? 'Customer Refund Transferred & Status Done! 💸' : 'Refund Request Rejected ❌';
       const notifMsg = isApproved
-        ? `Great news! Admin approved & issued your refund of BDT ${targetOrder.total.toLocaleString()} for Order #${targetOrder.id} via ${targetOrder.paymentMethod}. Ref TrxID: ${refundTrxId || 'REF-RELEASED'}.`
+        ? `Great news! Admin released your refund of BDT ${targetOrder.total.toLocaleString()} for Order #${targetOrder.id} via ${targetOrder.paymentMethod}. Status set to Done! Ref TrxID: ${refundTrxId || 'REF-RELEASED'}.`
         : `Admin declined the refund request for Order #${targetOrder.id}. ${note || ''}`;
 
       setNotifications((prev) => [

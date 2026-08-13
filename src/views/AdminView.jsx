@@ -18,6 +18,8 @@ import {
   Plus,
   Trash2,
   Truck,
+  RotateCcw,
+  RefreshCw,
   UserCheck,
   CheckSquare,
 } from 'lucide-react';
@@ -293,6 +295,13 @@ export const AdminView = () => {
           onClick={() => setActiveTab('mfs')}
         >
           <CreditCard size={16} /> MFS TrxID Verification ({mfsOrders.length})
+        </button>
+
+        <button
+          className={`btn ${activeTab === 'refunds' ? 'btn-primary' : 'btn-outline'}`}
+          onClick={() => setActiveTab('refunds')}
+        >
+          <RotateCcw size={16} /> Customer Refund Requests ({pendingRefundOrders.length})
         </button>
 
         <button
@@ -683,6 +692,114 @@ export const AdminView = () => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Module: Customer Refund Requests & Money Release Desk */}
+      {activeTab === 'refunds' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <RotateCcw size={18} style={{ color: '#c2410c' }} />
+              Customer Refund Requests & Money Release Desk
+            </h3>
+          </div>
+
+          {/* Refund Overview Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+            <div className="card" style={{ borderLeft: '4px solid #c2410c' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>Pending Refund Requests</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c', marginTop: 4 }}>
+                {pendingRefundOrders.length} Requests
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                BDT {pendingRefundOrders.reduce((sum, o) => sum + o.total, 0).toLocaleString()} Payable
+              </div>
+            </div>
+
+            <div className="card" style={{ borderLeft: '4px solid #15803d' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>Refunds Completed & Status Done</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#15803d', marginTop: 4 }}>
+                {orders.filter((o) => o.paymentStatus === 'Done' || o.paymentStatus === 'Refunded').length} Released
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                BDT {orders.filter((o) => o.paymentStatus === 'Done' || o.paymentStatus === 'Refunded').reduce((sum, o) => sum + o.total, 0).toLocaleString()} Total Returned
+              </div>
+            </div>
+          </div>
+
+          {pendingRefundOrders.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+              <CheckCircle2 size={44} style={{ color: 'var(--accent-emerald)', marginBottom: '0.5rem' }} />
+              <h4 style={{ color: 'var(--text-main)' }}>No Pending Customer Refund Requests</h4>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                All customer refund requests have been processed and status set to Done.
+              </p>
+            </div>
+          ) : (
+            <div className="table-wrapper">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Order ID</th>
+                    <th>Customer Name & Contact</th>
+                    <th>Payment Channel & Original TrxID</th>
+                    <th>Refund Amount</th>
+                    <th>Request Status</th>
+                    <th>Admin Money Release Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingRefundOrders.map((order) => (
+                    <tr key={order.id}>
+                      <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>#{order.id}</td>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{order.customerName}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{order.customerPhone} ({order.customerEmail})</div>
+                      </td>
+                      <td>
+                        <span className="badge badge-pending" style={{ background: '#fce7f3', color: '#be185d' }}>
+                          {order.paymentMethod}
+                        </span>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: 2 }}>
+                          TrxID: {order.paymentTrxId || 'N/A'}
+                        </div>
+                      </td>
+                      <td style={{ fontWeight: 800, color: '#c2410c' }}>BDT {order.total.toLocaleString()}</td>
+                      <td>
+                        <span className="badge badge-pending" style={{ background: '#fff7ed', color: '#c2410c', fontWeight: 800 }}>
+                          {order.paymentStatus || 'Pending Refund'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            className="btn btn-success"
+                            style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', fontWeight: 800 }}
+                            onClick={() => {
+                              setSelectedRefundVerify(order);
+                              setRefundTrxId(`REF-TRX-${Math.floor(100000 + Math.random() * 900000)}`);
+                              setRefundNote(`Admin released money & set status done for ${order.paymentMethod} refund.`);
+                            }}
+                          >
+                            <CheckSquare size={14} /> Release Money & Set Status Done
+                          </button>
+
+                          <button
+                            className="btn btn-danger"
+                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.65rem' }}
+                            onClick={() => processCustomerRefund(order.id, false, '', 'Refund declined by Admin')}
+                          >
+                            <XCircle size={14} /> Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
