@@ -61,6 +61,8 @@ export const CustomerView = ({
     return () => clearInterval(timer);
   }, []);
 
+  const [viewedRefundOrderIds, setViewedRefundOrderIds] = useState([]);
+
   // Filter Active Order Tracking (Exclude archived/cleared tracking orders)
   const customerOrders = orders.filter((o) => {
     if (o.isArchived) return false;
@@ -69,6 +71,26 @@ export const CustomerView = ({
     if (o.customerPhone && currentUser.phone && o.customerPhone === currentUser.phone) return true;
     return false;
   });
+
+  // Auto-archive refunded orders after customer views tracking 1 time
+  useEffect(() => {
+    if (activeTab === 'tracking') {
+      const refundedOrders = customerOrders.filter(
+        (o) => o.status === 'Cancelled' && (o.paymentStatus === 'Done' || o.paymentStatus === 'Refunded')
+      );
+
+      refundedOrders.forEach((o) => {
+        if (!viewedRefundOrderIds.includes(o.id)) {
+          setViewedRefundOrderIds((prev) => [...prev, o.id]);
+        }
+      });
+    } else {
+      if (viewedRefundOrderIds.length > 0) {
+        viewedRefundOrderIds.forEach((id) => archiveOrder(id));
+        setViewedRefundOrderIds([]);
+      }
+    }
+  }, [activeTab]);
 
   // Exclude products belonging to Suspended Vendors
   const activeProducts = products.filter((p) => {
@@ -690,20 +712,41 @@ export const CustomerView = ({
                   {order.status === 'Cancelled' && (
                     <div
                       style={{
-                        background: order.paymentStatus === 'Refunded' ? '#f0fdf4' : '#fff7ed',
-                        border: `1px solid ${order.paymentStatus === 'Refunded' ? '#bbf7d0' : '#ffedd5'}`,
-                        color: order.paymentStatus === 'Refunded' ? '#166534' : '#c2410c',
-                        padding: '0.65rem 0.85rem',
+                        background: (order.paymentStatus === 'Done' || order.paymentStatus === 'Refunded') ? '#f0fdf4' : '#fff7ed',
+                        border: `1px solid ${(order.paymentStatus === 'Done' || order.paymentStatus === 'Refunded') ? '#bbf7d0' : '#ffedd5'}`,
+                        color: (order.paymentStatus === 'Done' || order.paymentStatus === 'Refunded') ? '#166534' : '#c2410c',
+                        padding: '0.85rem 1rem',
                         borderRadius: 'var(--radius-sm)',
                         marginBottom: '1rem',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '0.5rem',
                       }}
                     >
-                      {order.paymentStatus === 'Refunded' ? (
-                        <div>
-                          💸 <strong>Refund Released & Transferred!</strong> BDT {order.total.toLocaleString()} has been returned to your {order.paymentMethod} account (Ref TrxID: {order.refundRefTrxId || 'REF-RELEASED'}).
-                        </div>
+                      {(order.paymentStatus === 'Done' || order.paymentStatus === 'Refunded') ? (
+                        <>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: '0.88rem' }}>
+                              💸 Refund Released & Status Done!
+                            </div>
+                            <div style={{ fontSize: '0.78rem', marginTop: 2, opacity: 0.9 }}>
+                              BDT {order.total.toLocaleString()} has been returned to your {order.paymentMethod} account (Ref TrxID: {order.refundRefTrxId || 'REF-RELEASED'}).
+                            </div>
+                          </div>
+
+                          <button
+                            className="btn btn-success"
+                            style={{ fontSize: '0.78rem', fontWeight: 800, padding: '0.4rem 0.85rem', whiteSpace: 'nowrap' }}
+                            onClick={() => {
+                              archiveOrder(order.id);
+                              alert(`✓ Refund for Order #${order.id} acknowledged and tracking cleared!`);
+                            }}
+                          >
+                            <CheckCircle2 size={15} /> Clear Refund Tracking
+                          </button>
+                        </>
                       ) : (
                         <div>
                           ⏳ <strong>Refund Pending Admin Approval:</strong> Seller cancelled order. BDT {order.total.toLocaleString()} refund is being verified by Admin and will be transferred to your {order.paymentMethod} account shortly.
