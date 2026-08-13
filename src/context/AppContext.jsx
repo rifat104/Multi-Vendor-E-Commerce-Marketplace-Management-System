@@ -15,24 +15,14 @@ export const AppProvider = ({ children }) => {
   // Registered User Accounts List
   const [userAccounts, setUserAccounts] = useState(() => {
     const saved = localStorage.getItem('kinbo_user_accounts');
-    const initial = [
-      { email: 'tanvir123@gmail.com', password: '123', name: 'Tanvir Customer', phone: '+8801700000000', role: 'customer' },
-      { email: 'customer@kinbo.com', password: '123', name: 'Rifat Hossain', phone: '+8801700000000', role: 'customer' },
-      { email: 'vendor@techlandbd.com', password: '123', name: 'TechLand BD', ownerName: 'Tanvir Ahmed', role: 'vendor', vendorId: 'v1' },
-      { email: 'support@aarongcrafts.com', password: '123', name: 'Aarong Crafts & Apparel', ownerName: 'Nusrat Jahan', role: 'vendor', vendorId: 'v2' },
-      { email: 'rifat123@gmail.com', password: 'rifat123', name: 'Rifat Ahmed', phone: '+8801711223344', role: 'delivery' },
-    ];
-
-    if (!saved) return initial;
-    try {
-      const parsed = JSON.parse(saved);
-      if (!parsed.some((u) => u.email.toLowerCase() === 'tanvir123@gmail.com')) {
-        parsed.push(initial[0]);
-      }
-      return parsed;
-    } catch (e) {
-      return initial;
-    }
+    return saved
+      ? JSON.parse(saved)
+      : [
+          { email: 'customer@kinbo.com', password: '123', name: 'Rifat Hossain', phone: '+8801700000000', role: 'customer' },
+          { email: 'vendor@techlandbd.com', password: '123', name: 'TechLand BD', ownerName: 'Tanvir Ahmed', role: 'vendor', vendorId: 'v1' },
+          { email: 'support@aarongcrafts.com', password: '123', name: 'Aarong Crafts & Apparel', ownerName: 'Nusrat Jahan', role: 'vendor', vendorId: 'v2' },
+          { email: 'rifat123@gmail.com', password: 'rifat123', name: 'Rifat Ahmed', phone: '+8801711223344', role: 'delivery' },
+        ];
   });
 
   const [adminAccounts] = useState(() => {
@@ -82,38 +72,12 @@ export const AppProvider = ({ children }) => {
   // Main Data States
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('kinbo_products');
-    if (!saved) return INITIAL_PRODUCTS;
-    try {
-      const parsed = JSON.parse(saved);
-      // Smart union: keep all existing products (including user-added), and add any missing initial seed products
-      const merged = [...parsed];
-      INITIAL_PRODUCTS.forEach((ip) => {
-        if (!merged.some((p) => p.id === ip.id)) {
-          merged.push(ip);
-        }
-      });
-      return merged;
-    } catch (e) {
-      return INITIAL_PRODUCTS;
-    }
+    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
   });
 
   const [vendors, setVendors] = useState(() => {
     const saved = localStorage.getItem('kinbo_vendors');
-    if (!saved) return INITIAL_VENDORS;
-    try {
-      const parsed = JSON.parse(saved);
-      // Smart union: preserve all user modifications (like Suspended statuses, custom vendors) and add any missing initial vendors
-      const merged = [...parsed];
-      INITIAL_VENDORS.forEach((iv) => {
-        if (!merged.some((v) => v.id === iv.id)) {
-          merged.push(iv);
-        }
-      });
-      return merged;
-    } catch (e) {
-      return INITIAL_VENDORS;
-    }
+    return saved ? JSON.parse(saved) : INITIAL_VENDORS;
   });
 
   const [categories] = useState(INITIAL_CATEGORIES);
@@ -224,6 +188,14 @@ export const AppProvider = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('kinbo_cart', JSON.stringify(cart));
   }, [cart]);
+
+  useEffect(() => {
+    localStorage.setItem('kinbo_reviews', JSON.stringify(reviews));
+  }, [reviews]);
+
+  useEffect(() => {
+    localStorage.setItem('kinbo_notifications', JSON.stringify(notifications));
+  }, [notifications]);
 
   // Robust Login System
   const login = (emailOrPhone, password) => {
@@ -343,7 +315,7 @@ export const AppProvider = ({ children }) => {
     const matchedUser = userAccounts.find(
       (u) =>
         ((u.email && u.email.trim().toLowerCase() === query) || (u.phone && u.phone.trim() === query)) &&
-        (u.password === password || u.password === password.trim() || password === '123' || password === '123456' || password === 'tanvir123' || !u.password)
+        u.password === password
     );
 
     if (matchedUser) {
@@ -365,35 +337,6 @@ export const AppProvider = ({ children }) => {
       setCurrentUser(loggedUser);
       setActiveRole(effectiveRole);
       return { success: true, role: effectiveRole };
-    }
-
-    // 4. Resilient Auto-Account Login for new browsers (e.g. Firefox)
-    if (query.includes('@')) {
-      const formattedName = query.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ');
-      const capitalizedName = formattedName.charAt(0).toUpperCase() + formattedName.slice(1);
-      const userId = `u-${query.replace(/[^a-z0-9]/g, '')}`;
-
-      const newUserAcc = {
-        id: userId,
-        email: query,
-        password: password || '123',
-        name: capitalizedName || 'Registered User',
-        phone: '+8801700000000',
-        role: 'customer',
-      };
-
-      setUserAccounts((prev) => [...prev, newUserAcc]);
-      const loggedUser = {
-        id: userId,
-        name: newUserAcc.name,
-        email: query,
-        phone: '+8801700000000',
-        role: 'customer',
-        isAuthenticated: true,
-      };
-      setCurrentUser(loggedUser);
-      setActiveRole('customer');
-      return { success: true, role: 'customer' };
     }
 
     return { success: false, message: 'Invalid Email/Phone or Password. Please check your login credentials.' };
@@ -1425,16 +1368,6 @@ export const AppProvider = ({ children }) => {
     });
   };
 
-  const resetPlatformData = () => {
-    setProducts(INITIAL_PRODUCTS);
-    setVendors(INITIAL_VENDORS);
-    setCoupons(INITIAL_COUPONS);
-    localStorage.setItem('kinbo_products', JSON.stringify(INITIAL_PRODUCTS));
-    localStorage.setItem('kinbo_vendors', JSON.stringify(INITIAL_VENDORS));
-    localStorage.setItem('kinbo_coupons', JSON.stringify(INITIAL_COUPONS));
-    showAlert('Data Reset', '✓ Marketplace product catalog & seller stores reset to default state.', 'info');
-  };
-
   const closeAlert = () => {
     setCustomAlert((prev) => ({ ...prev, isOpen: false }));
   };
@@ -1501,7 +1434,6 @@ export const AppProvider = ({ children }) => {
         deleteProduct,
         archiveOrder,
         addReview,
-        resetPlatformData,
       }}
     >
       {children}
