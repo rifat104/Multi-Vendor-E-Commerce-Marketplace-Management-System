@@ -82,12 +82,38 @@ export const AppProvider = ({ children }) => {
   // Main Data States
   const [products, setProducts] = useState(() => {
     const saved = localStorage.getItem('kinbo_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    if (!saved) return INITIAL_PRODUCTS;
+    try {
+      const parsed = JSON.parse(saved);
+      // Smart union: keep all existing products (including user-added), and add any missing initial seed products
+      const merged = [...parsed];
+      INITIAL_PRODUCTS.forEach((ip) => {
+        if (!merged.some((p) => p.id === ip.id)) {
+          merged.push(ip);
+        }
+      });
+      return merged;
+    } catch (e) {
+      return INITIAL_PRODUCTS;
+    }
   });
 
   const [vendors, setVendors] = useState(() => {
     const saved = localStorage.getItem('kinbo_vendors');
-    return saved ? JSON.parse(saved) : INITIAL_VENDORS;
+    if (!saved) return INITIAL_VENDORS;
+    try {
+      const parsed = JSON.parse(saved);
+      // Smart union: preserve all user modifications (like Suspended statuses, custom vendors) and add any missing initial vendors
+      const merged = [...parsed];
+      INITIAL_VENDORS.forEach((iv) => {
+        if (!merged.some((v) => v.id === iv.id)) {
+          merged.push(iv);
+        }
+      });
+      return merged;
+    } catch (e) {
+      return INITIAL_VENDORS;
+    }
   });
 
   const [categories] = useState(INITIAL_CATEGORIES);
@@ -1399,21 +1425,6 @@ export const AppProvider = ({ children }) => {
     });
   };
 
-  const STORAGE_VERSION = 'kinbo_v2026_08_14_v6';
-
-  useEffect(() => {
-    const currentVer = localStorage.getItem('kinbo_storage_version');
-    if (currentVer !== STORAGE_VERSION) {
-      setProducts(INITIAL_PRODUCTS);
-      setVendors(INITIAL_VENDORS);
-      setCoupons(INITIAL_COUPONS);
-      localStorage.setItem('kinbo_products', JSON.stringify(INITIAL_PRODUCTS));
-      localStorage.setItem('kinbo_vendors', JSON.stringify(INITIAL_VENDORS));
-      localStorage.setItem('kinbo_coupons', JSON.stringify(INITIAL_COUPONS));
-      localStorage.setItem('kinbo_storage_version', STORAGE_VERSION);
-    }
-  }, []);
-
   const resetPlatformData = () => {
     setProducts(INITIAL_PRODUCTS);
     setVendors(INITIAL_VENDORS);
@@ -1421,8 +1432,7 @@ export const AppProvider = ({ children }) => {
     localStorage.setItem('kinbo_products', JSON.stringify(INITIAL_PRODUCTS));
     localStorage.setItem('kinbo_vendors', JSON.stringify(INITIAL_VENDORS));
     localStorage.setItem('kinbo_coupons', JSON.stringify(INITIAL_COUPONS));
-    localStorage.setItem('kinbo_storage_version', STORAGE_VERSION);
-    showAlert('Data Synced', '✓ Marketplace product catalog & seller stores synced to latest version successfully!', 'success');
+    showAlert('Data Reset', '✓ Marketplace product catalog & seller stores reset to default state.', 'info');
   };
 
   const closeAlert = () => {
