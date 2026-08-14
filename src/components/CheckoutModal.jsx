@@ -7,8 +7,8 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
   const { cart, currentUser, placeOrder, coupons, appliedCoupon, applyCoupon, removeCoupon, showAlert } = useApp();
 
   const [selectedLocation, setSelectedLocation] = useState('Dhaka');
-  const [streetAddress, setStreetAddress] = useState(currentUser.address || 'House 12, Road 4, Sector 7');
-  const [phone, setPhone] = useState(currentUser.phone);
+  const [streetAddress, setStreetAddress] = useState('');
+  const [phone, setPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('bKash');
   const [paymentTrxId, setPaymentTrxId] = useState('');
   const [couponCodeInput, setCouponCodeInput] = useState('');
@@ -71,8 +71,8 @@ export const CheckoutModal = ({ isOpen, onClose, onSuccessOrder }) => {
     setIsSubmitting(true);
     const fullAddress = `${streetAddress.trim()}, ${selectedLocation}`;
 
-    setTimeout(() => {
-      const orderId = placeOrder({
+    setTimeout(async () => {
+      const orderId = await placeOrder({
         address: fullAddress,
         phone,
         paymentMethod,

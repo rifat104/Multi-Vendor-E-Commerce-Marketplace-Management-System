@@ -17,6 +17,7 @@ export const LoginModal = ({ isOpen, onClose }) => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
 
   // Vendor Application State
@@ -42,54 +43,71 @@ export const LoginModal = ({ isOpen, onClose }) => {
   const handleLoginSubmit = (e) => {
     e.preventDefault();
     if (!loginEmailOrPhone || !loginPassword) {
-      setError('Please enter both email/phone and password.');
+      showAlert('Login Failed', 'Please enter both email/phone and password.', 'error');
       return;
     }
 
     const res = login(loginEmailOrPhone, loginPassword);
     if (!res || !res.success) {
-      setError(res?.message || 'Invalid Email/Phone or Password. Please check your credentials.');
+      showAlert('Login Failed', res?.message || 'Invalid Email/Phone or Password. Please check your credentials.', 'error');
       return;
     }
 
     setError('');
     onClose();
+    
+    // Add success message based on role
+    let roleText = 'Customer';
+    if (res.role === 'admin') roleText = 'Administrator';
+    else if (res.role === 'vendor') roleText = 'Vendor';
+    else if (res.role === 'delivery') roleText = 'Delivery Rider';
+    
+    showAlert('Welcome Back! 🎉', `You have successfully logged in as ${roleText}.`, 'success');
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     if (!name || !phone || !email || !password) {
-      setError('Please fill in all required registration fields.');
+      showAlert('Registration Failed', 'Please fill in all required registration fields.', 'error');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showAlert('Registration Failed', 'Passwords do not match!', 'error');
       return;
     }
 
     if (isVendorReg && !storeName) {
-      setError('Please enter your Shop / Store Name.');
+      showAlert('Registration Failed', 'Please enter your Shop / Store Name.', 'error');
       return;
     }
 
     if (isDeliveryReg && !nidNumber) {
-      setError('Please enter your NID Card Number for rider verification.');
+      showAlert('Registration Failed', 'Please enter your NID Card Number for rider verification.', 'error');
       return;
     }
 
-    registerUser({
-      name,
-      phone,
-      email,
-      password,
-      isVendor: isVendorReg,
-      storeName,
-      category,
-      tradeLicense,
-      bankDetails,
-      isDelivery: isDeliveryReg,
-      address,
-      vehicleType,
-    });
+    if (!isVendorReg && !isDeliveryReg) {
+      await registerUser({ name, phone, email, password });
+    }
+
+    if (isVendorReg) {
+      await registerUser({
+        name,
+        phone,
+        email,
+        password,
+        isVendor: true,
+        storeName,
+        address: storeAddress,
+        category: vendorCategory,
+        tradeLicense,
+        bankDetails: vendorBankDetails,
+      });
+    }
 
     if (isDeliveryReg) {
-      registerDeliveryAgent({
+      const res = await registerDeliveryAgent({
         name,
         phone,
         email,
@@ -99,16 +117,21 @@ export const LoginModal = ({ isOpen, onClose }) => {
         zone: deliveryZone,
         bkash: riderBkash || phone,
       });
-    }
-
-    setError('');
-    onClose();
-    if (isVendorReg || isDeliveryReg) {
-      showAlert(
-        'Registration Submitted',
-        'Registration successful! Your application is pending Admin approval. You will see your request on the Admin Dashboard under Pending Approvals!',
-        'success'
-      );
+      if (res.success) {
+        showAlert('Registration Successful!', 'Your delivery agent application has been submitted for Admin approval.', 'success');
+        onClose();
+      } else {
+        showAlert('Registration Failed', res.message, 'error');
+      }
+    } else {
+      onClose();
+      if (isVendorReg) {
+        showAlert(
+          'Registration Submitted',
+          'Registration successful! Your application is pending Admin approval. You will see your request on the Admin Dashboard under Pending Approvals!',
+          'success'
+        );
+      }
     }
   };
 
@@ -236,34 +259,28 @@ export const LoginModal = ({ isOpen, onClose }) => {
               </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label">Create Password *</label>
-              <div style={{ position: 'relative' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="form-group">
+                <label className="form-label">Create Password *</label>
                 <input
-                  type={showRegisterPassword ? 'text' : 'password'}
+                  type="password"
                   className="form-input"
                   required
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  style={{ paddingRight: '2.5rem' }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowRegisterPassword(!showRegisterPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  {showRegisterPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Confirm Password *</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
               </div>
             </div>
 

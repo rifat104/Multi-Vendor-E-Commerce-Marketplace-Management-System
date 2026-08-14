@@ -9,11 +9,11 @@ export const ReviewModal = ({ isOpen, onClose, product, onSuccessReview }) => {
 
   if (!isOpen || !product) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!comment) return;
 
-    const res = addReview({
+    const res = await addReview({
       productId: product.productId || product.id,
       orderId: product.orderId || 'N/A',
       rating,

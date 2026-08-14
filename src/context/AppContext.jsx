@@ -1,138 +1,127 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import {
-  INITIAL_CATEGORIES,
-  INITIAL_VENDORS,
-  INITIAL_PRODUCTS,
-  INITIAL_ORDERS,
-  INITIAL_REVIEWS,
-  INITIAL_NOTIFICATIONS,
-  INITIAL_COUPONS,
-} from '../data/initialData';
+import { supabase } from '../lib/supabase';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  // Registered User Accounts List
-  const [userAccounts, setUserAccounts] = useState(() => {
-    const saved = localStorage.getItem('kinbo_user_accounts');
-    return saved
-      ? JSON.parse(saved)
-      : [
-          { email: 'customer@kinbo.com', password: '123', name: 'Rifat Hossain', phone: '+8801700000000', role: 'customer' },
-          { email: 'vendor@techlandbd.com', password: '123', name: 'TechLand BD', ownerName: 'Tanvir Ahmed', role: 'vendor', vendorId: 'v1' },
-          { email: 'support@aarongcrafts.com', password: '123', name: 'Aarong Crafts & Apparel', ownerName: 'Nusrat Jahan', role: 'vendor', vendorId: 'v2' },
-          { email: 'rifat123@gmail.com', password: 'rifat123', name: 'Rifat Ahmed', phone: '+8801711223344', role: 'delivery' },
-        ];
-  });
-
-  const [adminAccounts] = useState(() => {
-    const saved = localStorage.getItem('kinbo_admin_accounts');
-    return saved
-      ? JSON.parse(saved)
-      : [{ email: 'admin1234@gmail.com', password: 'admin@123', name: 'Super Administrator' }];
-  });
-
-  // Current Logged-In User
+  // State Initialization
+  const [userAccounts, setUserAccounts] = useState([]);
+  const [adminAccounts] = useState([{ email: 'admin1234@gmail.com', password: 'admin@123', name: 'Super Administrator' }]);
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('kinbo_user');
-    return saved
-      ? JSON.parse(saved)
-      : {
-          id: 'c1',
-          name: 'Rifat Hossain',
-          email: 'customer@kinbo.com',
-          phone: '+8801700000000',
-          address: 'House 14, Road 5, Block B, Bashundhara R/A, Dhaka',
-          role: 'customer',
-          isAuthenticated: true,
-        };
+    try {
+      const saved = localStorage.getItem('kinbo_user');
+      return saved ? JSON.parse(saved) : { id: 'guest', name: 'Guest User', email: '', role: 'customer', isAuthenticated: false };
+    } catch (e) {
+      return { id: 'guest', name: 'Guest User', email: '', role: 'customer', isAuthenticated: false };
+    }
   });
-
-  const [activeRole, setActiveRole] = useState(() => currentUser.role || 'customer');
-  const [activeVendorId, setActiveVendorId] = useState(() => localStorage.getItem('kinbo_vendor_id') || 'v1');
-
-  // Coupon & Voucher State
-  const [coupons, setCoupons] = useState(() => {
-    const saved = localStorage.getItem('kinbo_coupons');
-    return saved ? JSON.parse(saved) : INITIAL_COUPONS;
+  const [activeRole, setActiveRole] = useState(() => {
+    try {
+      const saved = localStorage.getItem('kinbo_user');
+      return saved ? JSON.parse(saved).role : 'customer';
+    } catch (e) {
+      return 'customer';
+    }
   });
-
-  const [collectedVouchers, setCollectedVouchers] = useState(() => {
-    const saved = localStorage.getItem('kinbo_collected_vouchers');
-    return saved ? JSON.parse(saved) : ['KINBO10'];
+  const [activeVendorId, setActiveVendorId] = useState(() => {
+    return localStorage.getItem('kinbo_vendor_id') || null;
   });
-
-  const [appliedCoupon, setAppliedCoupon] = useState(() => {
-    return coupons.find((c) => c.code === 'KINBO10') || null;
-  });
-
-  // Modals & Drawers
+  const [coupons, setCoupons] = useState([]);
+  const [collectedVouchers, setCollectedVouchers] = useState(['KINBO10']);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-
-  // Main Data States
-  const [products, setProducts] = useState(() => {
-    const saved = localStorage.getItem('kinbo_products');
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
-  });
-
-  const [vendors, setVendors] = useState(() => {
-    const saved = localStorage.getItem('kinbo_vendors');
-    return saved ? JSON.parse(saved) : INITIAL_VENDORS;
-  });
-
-  const [categories] = useState(INITIAL_CATEGORIES);
-
-  const [orders, setOrders] = useState(() => {
-    const saved = localStorage.getItem('kinbo_orders');
-    return saved ? JSON.parse(saved) : INITIAL_ORDERS;
-  });
-
+  const [products, setProducts] = useState([]);
+  const [vendors, setVendors] = useState([]);
+  const [categories] = useState([
+    { id: '1', name: 'Electronics & Gadgets', icon: '💻' },
+    { id: '2', name: 'Fashion & Apparel', icon: '👕' },
+    { id: '3', name: 'Home & Lifestyle', icon: '🏠' },
+    { id: '4', name: 'Groceries', icon: '🛒' },
+    { id: '5', name: 'Health & Beauty', icon: '💄' },
+  ]);
+  const [orders, setOrders] = useState([]);
   const [cart, setCart] = useState(() => {
     const saved = localStorage.getItem('kinbo_cart');
     return saved ? JSON.parse(saved) : [];
   });
+  const [reviews, setReviews] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [payoutRequests, setPayoutRequests] = useState([]);
+  const [deliveryAgents, setDeliveryAgents] = useState([]);
+  const [customAlert, setCustomAlert] = useState({ isOpen: false, title: '', message: '', type: 'info' });
 
-  const [reviews, setReviews] = useState(() => {
-    const saved = localStorage.getItem('kinbo_reviews');
-    return saved ? JSON.parse(saved) : INITIAL_REVIEWS;
-  });
+  // Alerts
+  const showAlert = (title, message, type = 'info') => {
+    setCustomAlert({ isOpen: true, title, message, type });
+  };
+  const closeAlert = () => {
+    setCustomAlert((prev) => ({ ...prev, isOpen: false }));
+  };
 
-  const [notifications, setNotifications] = useState(() => {
-    const saved = localStorage.getItem('kinbo_notifications');
-    return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
-  });
+  // 1. Initial Supabase Data Fetch
+  useEffect(() => {
+    const fetchAllData = async () => {
+      try {
+        const [
+          { data: usersData },
+          { data: productsData },
+          { data: ordersData },
+          { data: vendorsData },
+          { data: agentsData },
+          { data: reviewsData },
+          { data: payoutsData },
+          { data: couponsData },
+          { data: notificationsData }
+        ] = await Promise.all([
+          supabase.from('users').select('*'),
+          supabase.from('products').select('*'),
+          supabase.from('orders').select('*').order('date', { ascending: false }),
+          supabase.from('vendors').select('*'),
+          supabase.from('delivery_agents').select('*'),
+          supabase.from('reviews').select('*'),
+          supabase.from('payout_requests').select('*'),
+          supabase.from('coupons').select('*'),
+          supabase.from('notifications').select('*')
+        ]);
 
-  // Vendor Payout Requests State
-  const [payoutRequests, setPayoutRequests] = useState(() => {
-    const saved = localStorage.getItem('kinbo_payout_requests');
-    return saved
-      ? JSON.parse(saved)
-      : [
-          {
-            id: 'PAY-8801',
-            vendorId: 'v1',
-            vendorName: 'TechLand BD',
-            amount: 1200,
-            bankDetails: 'bKash Merchant: 01711223344',
-            date: '2026-08-11 12:00',
-            status: 'Approved',
-          },
-        ];
-  });
+        if (usersData) setUserAccounts(usersData.map(u => ({...u, vendorId: u.vendor_id, ownerName: u.owner_name})));
+        if (productsData) setProducts(productsData.map(p => ({...p, originalPrice: p.original_price, reviewCount: p.review_count, vendorId: p.vendor_id, vendorName: p.vendor_name, onSale: p.on_sale, discountPercent: p.discount_percent})));
+        if (ordersData) setOrders(ordersData.map(o => ({...o, customerId: o.customer_id, customerName: o.customer_name, customerEmail: o.customer_email, customerPhone: o.customer_phone, paymentMethod: o.payment_method, paymentStatus: o.payment_status, paymentTrxId: o.payment_trx_id, refundRefTrxId: o.refund_ref_trx_id, shippingAddress: o.shipping_address, deliveryFee: o.delivery_fee, deliveryRiderId: o.delivery_rider_id, deliveryRiderName: o.delivery_rider_name, isArchived: o.is_archived})));
+        if (vendorsData) setVendors(vendorsData.map(v => ({...v, ownerName: v.owner_name, bankDetails: v.bank_details, commissionRate: v.commission_rate})));
+        if (agentsData) setDeliveryAgents(agentsData.map(a => ({...a, completedDeliveries: a.completed_deliveries})));
+        if (reviewsData) setReviews(reviewsData.map(r => ({...r, productId: r.product_id, orderId: r.order_id, userId: r.user_id, userEmail: r.user_email, userName: r.user_name, userRole: r.user_role})));
+        if (payoutsData) setPayoutRequests(payoutsData.map(p => ({...p, vendorId: p.vendor_id, vendorName: p.vendor_name, driverName: p.driver_name, bankDetails: p.bank_details})));
+        if (couponsData) setCoupons(couponsData.map(c => ({...c, discountType: c.discount_type, minSpend: c.min_spend})));
+        if (notificationsData) setNotifications(notificationsData.map(n => ({...n, targetRole: n.target_role, targetUserId: n.target_user_id, orderId: n.order_id})));
+      } catch (error) {
+        console.error("Error fetching from Supabase:", error);
+      }
+    };
 
-  // Delivery Agents State
-  const [deliveryAgents, setDeliveryAgents] = useState(() => {
-    const saved = localStorage.getItem('kinbo_delivery_agents');
-    return saved
-      ? JSON.parse(saved)
-      : [
-          { id: 'd1', name: 'Jalal Uddin', phone: '+8801811223344', email: 'jalal@kinbo.com', vehicle: 'Motorcycle', nid: '1992837465', status: 'Approved', rating: 4.9, completedDeliveries: 142 },
-          { id: 'd2', name: 'Rafiqul Islam', phone: '+8801911223344', email: 'rafiq@kinbo.com', vehicle: 'Bicycle', nid: '1995837112', status: 'Pending', rating: 5.0, completedDeliveries: 0 },
-          { id: 'd3', name: 'Rifat Ahmed', phone: '+8801711223344', email: 'rifat123@gmail.com', vehicle: 'Motorcycle', nid: '1995839201', status: 'Approved', rating: 5.0, completedDeliveries: 8 },
-        ];
-  });
+    fetchAllData();
+  }, []);
 
-  // Automatically enforce Approved Delivery Rider role for any logged-in user
+  // Sync Cart
+  useEffect(() => {
+    localStorage.setItem('kinbo_cart', JSON.stringify(cart));
+  }, [cart]);
+
+  // Sync User session
+  useEffect(() => {
+    localStorage.setItem('kinbo_user', JSON.stringify(currentUser));
+    localStorage.setItem('kinbo_vendor_id', activeVendorId);
+    setActiveRole(currentUser.role);
+  }, [currentUser, activeVendorId]);
+
+  // Check login state on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('kinbo_user');
+    if (saved) {
+      setCurrentUser(JSON.parse(saved));
+      setActiveVendorId(localStorage.getItem('kinbo_vendor_id'));
+    }
+  }, []);
+
   useEffect(() => {
     if (currentUser && currentUser.email) {
       const userEmail = currentUser.email.trim().toLowerCase();
@@ -146,194 +135,79 @@ export const AppProvider = ({ children }) => {
     }
   }, [currentUser, deliveryAgents, activeRole]);
 
-  // Local Storage Sync
-  useEffect(() => {
-    localStorage.setItem('kinbo_delivery_agents', JSON.stringify(deliveryAgents));
-  }, [deliveryAgents]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_user', JSON.stringify(currentUser));
-    localStorage.setItem('kinbo_vendor_id', activeVendorId);
-    setActiveRole(currentUser.role);
-  }, [currentUser, activeVendorId]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_payout_requests', JSON.stringify(payoutRequests));
-  }, [payoutRequests]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_user_accounts', JSON.stringify(userAccounts));
-  }, [userAccounts]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_coupons', JSON.stringify(coupons));
-  }, [coupons]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_collected_vouchers', JSON.stringify(collectedVouchers));
-  }, [collectedVouchers]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_products', JSON.stringify(products));
-  }, [products]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_vendors', JSON.stringify(vendors));
-  }, [vendors]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_orders', JSON.stringify(orders));
-  }, [orders]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_cart', JSON.stringify(cart));
-  }, [cart]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_reviews', JSON.stringify(reviews));
-  }, [reviews]);
-
-  useEffect(() => {
-    localStorage.setItem('kinbo_notifications', JSON.stringify(notifications));
-  }, [notifications]);
 
   // Robust Login System
   const login = (emailOrPhone, password) => {
     const query = emailOrPhone.trim().toLowerCase();
-
-    // 1. Check Admin Credentials
     const matchedAdmin = adminAccounts.find(
       (a) => (a.email.toLowerCase() === query || query === 'admin1234@gmail.com') && (a.password === password || password === 'admin@123')
     );
-
     if (matchedAdmin) {
-      const adminUser = {
-        id: 'admin-super',
-        name: matchedAdmin.name || 'System Administrator',
-        email: matchedAdmin.email,
-        phone: '+8801700000000',
-        role: 'admin',
-        isAuthenticated: true,
-      };
+      const adminUser = { id: 'admin-super', name: matchedAdmin.name || 'System Administrator', email: matchedAdmin.email, phone: '+8801700000000', role: 'admin', isAuthenticated: true };
       setCurrentUser(adminUser);
       setActiveRole('admin');
       return { success: true, role: 'admin' };
     }
 
-    // 2. Check Vendor Stores
-    const matchedVendor = vendors.find(
-      (v) => (v.email.toLowerCase() === query || v.phone === query) && (v.password === password || password === '123' || !v.password)
-    );
-
-    if (matchedVendor) {
-      if (matchedVendor.status === 'Approved') {
-        const vendorUser = {
-          id: matchedVendor.id,
-          name: matchedVendor.name,
-          ownerName: matchedVendor.ownerName,
-          email: matchedVendor.email,
-          phone: matchedVendor.phone,
-          logo: matchedVendor.logo,
-          role: 'vendor',
-          vendorId: matchedVendor.id,
-          isAuthenticated: true,
-        };
-        setCurrentUser(vendorUser);
-        setActiveVendorId(matchedVendor.id);
-        setActiveRole('vendor');
-        return { success: true, role: 'vendor' };
-      } else {
-        const customerUser = {
-          id: matchedVendor.id,
-          name: matchedVendor.ownerName || matchedVendor.name,
-          email: matchedVendor.email,
-          phone: matchedVendor.phone,
-          role: 'customer',
-          isAuthenticated: true,
-        };
-        setCurrentUser(customerUser);
-        setActiveRole('customer');
-        return {
-          success: true,
-          role: 'customer',
-          message: 'Your Vendor store application is currently Pending Admin approval. Logged in as Customer in the meantime.',
-        };
-      }
-    }
-
-    // 2.5 Check Delivery Agents
-    const matchedAgent = deliveryAgents.find(
-      (d) => (d.email && d.email.trim().toLowerCase() === query) || (d.phone && d.phone.trim() === query)
-    );
-
-    if (matchedAgent) {
-      // Find matching userAccount for password validation
-      const matchedUserAcc = userAccounts.find(
-        (u) =>
-          ((u.email && u.email.trim().toLowerCase() === query) || (u.phone && u.phone.trim() === query)) &&
-          u.password === password
-      );
-
-      // Allow demo riders (jalal@kinbo.com / rafiq@kinbo.com with pass '123') or matched user account password
-      const isDemoRider = (query === 'jalal@kinbo.com' || query === 'rafiq@kinbo.com') && (password === '123' || !password);
-
-      if (matchedUserAcc || isDemoRider) {
-        if (matchedAgent.status === 'Approved') {
-          const deliveryUser = {
-            id: matchedAgent.id,
-            name: matchedAgent.name,
-            email: matchedAgent.email,
-            phone: matchedAgent.phone,
-            vehicle: matchedAgent.vehicle,
-            role: 'delivery',
-            isAuthenticated: true,
-          };
-          setCurrentUser(deliveryUser);
-          setActiveRole('delivery');
-          return { success: true, role: 'delivery' };
+    const matchedVendorUser = userAccounts.find(u => ((u.email && u.email.toLowerCase() === query) || (u.phone && u.phone === query)) && u.role === 'vendor');
+    if (matchedVendorUser && (matchedVendorUser.password === password || password === '123' || !matchedVendorUser.password)) {
+      // Find the corresponding vendor store precisely by ID or fallback to name matching
+      const matchedVendorStore = vendors.find(v => v.id === matchedVendorUser.vendorId || v.ownerName === matchedVendorUser.name || v.name === matchedVendorUser.name);
+      
+      if (matchedVendorStore) {
+        if (matchedVendorStore.status === 'Approved') {
+          const vendorUser = { id: matchedVendorStore.id, name: matchedVendorStore.name, ownerName: matchedVendorStore.ownerName, email: matchedVendorUser.email, phone: matchedVendorUser.phone, logo: matchedVendorStore.logo, role: 'vendor', vendorId: matchedVendorStore.id, isAuthenticated: true };
+          setCurrentUser(vendorUser);
+          setActiveVendorId(matchedVendorStore.id);
+          setActiveRole('vendor');
+          return { success: true, role: 'vendor' };
         } else {
-          const customerUser = {
-            id: matchedAgent.id,
-            name: matchedAgent.name,
-            email: matchedAgent.email,
-            phone: matchedAgent.phone,
-            role: 'customer',
-            isAuthenticated: true,
-          };
+          const customerUser = { id: matchedVendorStore.id, name: matchedVendorStore.ownerName || matchedVendorStore.name, email: matchedVendorUser.email, phone: matchedVendorUser.phone, role: 'customer', isAuthenticated: true };
           setCurrentUser(customerUser);
           setActiveRole('customer');
-          return {
-            success: true,
-            role: 'customer',
-            message: 'Your Delivery Rider application is currently Pending Admin approval. Logged in as Customer in the meantime.',
-          };
+          
+          if (matchedVendorStore.status === 'Suspended') {
+             return { success: true, role: 'customer', message: 'Your Vendor store application has been Rejected by the Admin. Logged in as Customer.' };
+          }
+          return { success: true, role: 'customer', message: 'Your Vendor store application is currently Pending Admin approval. Logged in as Customer in the meantime.' };
         }
       }
     }
 
-    // 3. Check Standard Registered User Accounts
+    const matchedAgent = deliveryAgents.find(
+      (d) => (d.email && d.email.trim().toLowerCase() === query) || (d.phone && d.phone.trim() === query)
+    );
+    if (matchedAgent) {
+      const matchedUserAcc = userAccounts.find(
+        (u) => ((u.email && u.email.trim().toLowerCase() === query) || (u.phone && u.phone.trim() === query)) && u.password === password
+      );
+      const isDemoRider = (query === 'jalal@kinbo.com' || query === 'rafiq@kinbo.com') && (password === '123' || !password);
+
+      if (matchedUserAcc || isDemoRider) {
+        if (matchedAgent.status === 'Approved') {
+          const deliveryUser = { id: matchedAgent.id, name: matchedAgent.name, email: matchedAgent.email, phone: matchedAgent.phone, vehicle: matchedAgent.vehicle, role: 'delivery', isAuthenticated: true };
+          setCurrentUser(deliveryUser);
+          setActiveRole('delivery');
+          return { success: true, role: 'delivery' };
+        } else {
+          const customerUser = { id: matchedAgent.id, name: matchedAgent.name, email: matchedAgent.email, phone: matchedAgent.phone, role: 'customer', isAuthenticated: true };
+          setCurrentUser(customerUser);
+          setActiveRole('customer');
+          return { success: true, role: 'customer', message: 'Your Delivery Rider application is currently Pending Admin approval. Logged in as Customer in the meantime.' };
+        }
+      }
+    }
+
     const matchedUser = userAccounts.find(
-      (u) =>
-        ((u.email && u.email.trim().toLowerCase() === query) || (u.phone && u.phone.trim() === query)) &&
-        u.password === password
+      (u) => ((u.email && u.email.trim().toLowerCase() === query) || (u.phone && u.phone.trim() === query)) && u.password === password
     );
 
     if (matchedUser) {
-      const isApprovedRider = deliveryAgents.some(
-        (d) => d.email && d.email.trim().toLowerCase() === query && d.status === 'Approved'
-      );
-
+      const isApprovedRider = deliveryAgents.some((d) => d.email && d.email.trim().toLowerCase() === query && d.status === 'Approved');
       const effectiveRole = isApprovedRider ? 'delivery' : (matchedUser.role || 'customer');
       const userId = matchedUser.id || `u-${matchedUser.email.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
 
-      const loggedUser = {
-        id: userId,
-        name: matchedUser.name,
-        email: matchedUser.email,
-        phone: matchedUser.phone || '+8801700000000',
-        role: effectiveRole,
-        isAuthenticated: true,
-      };
+      const loggedUser = { id: userId, name: matchedUser.name, email: matchedUser.email, phone: matchedUser.phone || '+8801700000000', role: effectiveRole, isAuthenticated: true };
       setCurrentUser(loggedUser);
       setActiveRole(effectiveRole);
       return { success: true, role: effectiveRole };
@@ -343,18 +217,13 @@ export const AppProvider = ({ children }) => {
   };
 
   const logout = () => {
-    setCurrentUser({
-      id: 'guest',
-      name: 'Guest User',
-      email: '',
-      role: 'customer',
-      isAuthenticated: false,
-    });
+    setCurrentUser({ id: 'guest', name: 'Guest User', email: '', role: 'customer', isAuthenticated: false });
     setActiveRole('customer');
   };
 
-  const registerUser = (userData) => {
+  const registerUser = async (userData) => {
     const userId = `u-${userData.email.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+    const vendorId = userData.isVendor ? `v${Date.now()}` : null;
 
     const newUserAccount = {
       id: userId,
@@ -362,13 +231,17 @@ export const AppProvider = ({ children }) => {
       phone: userData.phone,
       email: userData.email,
       password: userData.password,
-      role: 'customer',
+      role: userData.isVendor ? 'vendor' : (userData.isDelivery ? 'delivery' : 'customer'),
+      vendor_id: vendorId,
     };
 
-    setUserAccounts((prev) => [...prev.filter((u) => u.email.toLowerCase() !== userData.email.toLowerCase()), newUserAccount]);
+    // Supabase
+    await supabase.from('users').upsert(newUserAccount);
+    setUserAccounts((prev) => [...prev.filter((u) => u.email && userData.email && u.email.toLowerCase() !== userData.email.toLowerCase()), newUserAccount]);
 
     if (userData.isVendor) {
       registerVendor({
+        id: vendorId,
         name: userData.storeName || userData.name,
         ownerName: userData.name,
         email: userData.email,
@@ -381,23 +254,16 @@ export const AppProvider = ({ children }) => {
       });
     }
 
-    const loggedUser = {
-      id: userId,
-      name: userData.name,
-      email: userData.email,
-      phone: userData.phone,
-      role: 'customer',
-      isAuthenticated: true,
-    };
+    const loggedUser = { id: userId, name: userData.name, email: userData.email, phone: userData.phone, role: 'customer', isAuthenticated: true };
     setCurrentUser(loggedUser);
     setActiveRole('customer');
   };
 
-  const registerVendor = (vendorData) => {
+  const registerVendor = async (vendorData) => {
     const newVendor = {
-      id: `v${Date.now()}`,
+      id: vendorData.id || `v${Date.now()}`,
       name: vendorData.name,
-      ownerName: vendorData.ownerName || vendorData.name,
+      owner_name: vendorData.ownerName || vendorData.name,
       email: vendorData.email,
       phone: vendorData.phone,
       password: vendorData.password || '123',
@@ -405,104 +271,104 @@ export const AppProvider = ({ children }) => {
       category: vendorData.category || 'Electronics & Gadgets',
       status: 'Pending',
       rating: 5.0,
-      reviewCount: 0,
-      tradeLicense: vendorData.tradeLicense || 'TRAD/2026/KINBO',
-      bankDetails: vendorData.bankDetails || 'bKash Merchant Details',
-      joinedDate: new Date().toISOString().split('T')[0],
+      review_count: 0,
+      trade_license: vendorData.tradeLicense || 'TRAD/2026/KINBO',
+      bank_details: vendorData.bankDetails || 'bKash Merchant Details',
+      joined_date: new Date().toISOString().split('T')[0],
       logo: 'https://images.unsplash.com/photo-1546868871-7041f2a55e12?w=150&auto=format&fit=crop&q=80',
       banner: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=800&auto=format&fit=crop&q=80',
-      commissionRate: 5,
+      commission_rate: 5,
+    };
+    
+    // Map camelCase for Supabase
+    const dbVendor = {
+      id: newVendor.id, name: newVendor.name, owner_name: newVendor.owner_name, logo: newVendor.logo, banner: newVendor.banner,
+      phone: newVendor.phone, address: newVendor.address, bank_details: newVendor.bank_details, commission_rate: newVendor.commission_rate, status: newVendor.status
     };
 
-    setVendors((prev) => [...prev, newVendor]);
+    await supabase.from('vendors').insert(dbVendor);
+    setVendors((prev) => [...prev, { ...newVendor, ownerName: newVendor.owner_name, bankDetails: newVendor.bank_details, commissionRate: newVendor.commission_rate }]);
 
-    setNotifications((prev) => [
-      {
-        id: `n-${Date.now()}`,
-        title: 'New Seller Registration Pending Approval 🏪',
-        message: `Store "${vendorData.name}" owned by ${vendorData.ownerName || vendorData.name} registered. Pending Admin approval.`,
-        targetRole: 'Admin',
-        time: 'Just now',
-        read: false,
-      },
-      ...prev,
-    ]);
+    const notif = {
+      id: `n-${Date.now()}`,
+      title: 'New Seller Registration Pending Approval 🏪',
+      message: `Store "${vendorData.name}" owned by ${vendorData.ownerName || vendorData.name} registered. Pending Admin approval.`,
+      target_role: 'Admin',
+      time: 'Just now',
+      read: false,
+    };
+    await supabase.from('notifications').insert(notif);
+    setNotifications((prev) => [{...notif, targetRole: notif.target_role}, ...prev]);
   };
 
-  const updateVendorProfile = (vendorId, updatedData) => {
-    setVendors((prev) =>
-      prev.map((v) => {
-        if (v.id === vendorId) {
-          return {
-            ...v,
-            name: updatedData.name || v.name,
-            ownerName: updatedData.ownerName || v.ownerName,
-            logo: updatedData.logo || v.logo,
-            banner: updatedData.banner || v.banner,
-            phone: updatedData.phone || v.phone,
-            address: updatedData.address || v.address,
-            bankDetails: updatedData.bankDetails || v.bankDetails,
-          };
-        }
-        return v;
-      })
-    );
+  const updateVendorProfile = async (vendorId, updatedData) => {
+    await supabase.from('vendors').update({
+      name: updatedData.name,
+      owner_name: updatedData.ownerName,
+      logo: updatedData.logo,
+      banner: updatedData.banner,
+      phone: updatedData.phone,
+      address: updatedData.address,
+      bank_details: updatedData.bankDetails,
+    }).eq('id', vendorId);
 
+    setVendors((prev) => prev.map((v) => {
+      if (v.id === vendorId) {
+        return { ...v, name: updatedData.name || v.name, ownerName: updatedData.ownerName || v.ownerName, logo: updatedData.logo || v.logo, banner: updatedData.banner || v.banner, phone: updatedData.phone || v.phone, address: updatedData.address || v.address, bankDetails: updatedData.bankDetails || v.bankDetails };
+      }
+      return v;
+    }));
     if (currentUser.vendorId === vendorId || currentUser.email === updatedData.email) {
-      setCurrentUser((prev) => ({
-        ...prev,
-        name: updatedData.name || prev.name,
-        ownerName: updatedData.ownerName || prev.ownerName,
-        logo: updatedData.logo || prev.logo,
-      }));
+      setCurrentUser((prev) => ({ ...prev, name: updatedData.name || prev.name, ownerName: updatedData.ownerName || prev.ownerName, logo: updatedData.logo || prev.logo }));
     }
   };
 
-  const approveVendor = (vendorId) => {
+  const approveVendor = async (vendorId) => {
+    await supabase.from('vendors').update({ status: 'Approved' }).eq('id', vendorId);
+    setVendors((prev) => prev.map((v) => (v.id === vendorId ? { ...v, status: 'Approved' } : v)));
+
     const targetVendor = vendors.find((v) => v.id === vendorId);
-
-    setVendors((prev) =>
-      prev.map((v) => (v.id === vendorId ? { ...v, status: 'Approved' } : v))
-    );
-
     if (targetVendor) {
-      setNotifications((prev) => [
-        {
-          id: `n-${Date.now()}`,
-          title: 'Vendor Store Approved! 🎉',
-          message: `Congratulations! Your seller store "${targetVendor.name}" has been approved by Admin! You can now access your Vendor Dashboard to customize your shop & list products.`,
-          targetRole: 'Vendor',
-          targetVendorId: vendorId,
-          time: 'Just now',
-          read: false,
-        },
-        ...prev,
-      ]);
+      const notif = {
+        id: `n-${Date.now()}`,
+        title: 'Vendor Store Approved! 🎉',
+        message: `Congratulations! Your seller store "${targetVendor.name}" has been approved by Admin!`,
+        target_role: 'Vendor',
+        target_user_id: vendorId,
+        date: 'Just now',
+        read: false,
+      };
+      await supabase.from('notifications').insert(notif);
+      setNotifications((prev) => [{...notif, targetRole: 'Vendor'}, ...prev]);
 
-      if (currentUser.email.toLowerCase() === targetVendor.email.toLowerCase()) {
-        const upgradedUser = {
-          ...currentUser,
-          role: 'vendor',
-          name: targetVendor.name,
-          ownerName: targetVendor.ownerName,
-          logo: targetVendor.logo,
-          vendorId: targetVendor.id,
-        };
-        setCurrentUser(upgradedUser);
-        setActiveVendorId(targetVendor.id);
+      if (currentUser.email && targetVendor.email && currentUser.email.toLowerCase() === targetVendor.email.toLowerCase()) {
+        setCurrentUser({...currentUser, role: 'vendor', vendorId: targetVendor.id, name: targetVendor.name});
         setActiveRole('vendor');
       }
     }
   };
 
-  const suspendVendor = (vendorId) => {
-    setVendors((prev) =>
-      prev.map((v) => (v.id === vendorId ? { ...v, status: 'Suspended' } : v))
-    );
+  const suspendVendor = async (vendorId) => {
+    await supabase.from('vendors').update({ status: 'Suspended' }).eq('id', vendorId);
+    setVendors((prev) => prev.map((v) => (v.id === vendorId ? { ...v, status: 'Suspended' } : v)));
+
+    const targetVendor = vendors.find((v) => v.id === vendorId);
+    if (targetVendor) {
+      const notif = {
+        id: `n-${Date.now()}`,
+        title: 'Vendor Store Application Rejected ❌',
+        message: `We're sorry, your application for "${targetVendor.name}" has been rejected.`,
+        target_role: 'Customer',
+        target_user_id: vendorId,
+        date: 'Just now',
+        read: false,
+      };
+      await supabase.from('notifications').insert(notif);
+      setNotifications((prev) => [{...notif, targetRole: 'Customer', targetUserId: vendorId}, ...prev]);
+    }
   };
 
-  // Delivery Agent Registration & Admin Approval
-  const registerDeliveryAgent = (agentData) => {
+  const registerDeliveryAgent = async (agentData) => {
     const newAgent = {
       id: `d-${Date.now()}`,
       name: agentData.name,
@@ -515,236 +381,93 @@ export const AppProvider = ({ children }) => {
       bkash: agentData.bkash || agentData.phone,
       status: 'Pending',
       rating: 5.0,
-      completedDeliveries: 0,
-      joinedDate: new Date().toISOString().split('T')[0],
+      completed_deliveries: 0,
     };
+    await supabase.from('delivery_agents').insert(newAgent);
+    setDeliveryAgents((prev) => [...prev, { ...newAgent, completedDeliveries: 0 }]);
 
-    setDeliveryAgents((prev) => [...prev, newAgent]);
-
-    setNotifications((prev) => [
-      {
-        id: `n-${Date.now()}`,
-        title: 'New Delivery Agent Registration Pending 🚚',
-        message: `Rider "${agentData.name}" registered with vehicle (${agentData.vehicle || 'Motorcycle'}). Pending Admin approval.`,
-        targetRole: 'Admin',
-        time: 'Just now',
-        read: false,
-      },
-      ...prev,
-    ]);
-
-    return { success: true, message: 'Delivery Agent application submitted! Pending Admin approval.' };
+    const notif = {
+      id: `n-${Date.now()}`,
+      title: 'New Delivery Agent Registration Pending 🚚',
+      message: `Rider "${agentData.name}" registered. Pending Admin approval.`,
+      target_role: 'Admin',
+      date: 'Just now',
+      read: false,
+    };
+    await supabase.from('notifications').insert(notif);
+    setNotifications((prev) => [{...notif, targetRole: 'Admin'}, ...prev]);
+    return { success: true, message: 'Delivery Agent application submitted!' };
   };
 
-  const approveDeliveryAgent = (agentId) => {
+  const approveDeliveryAgent = async (agentId) => {
+    await supabase.from('delivery_agents').update({ status: 'Approved' }).eq('id', agentId);
+    setDeliveryAgents((prev) => prev.map((d) => (d.id === agentId ? { ...d, status: 'Approved' } : d)));
     const agent = deliveryAgents.find((d) => d.id === agentId);
-    setDeliveryAgents((prev) =>
-      prev.map((d) => (d.id === agentId ? { ...d, status: 'Approved' } : d))
-    );
-
     if (agent) {
-      setUserAccounts((prev) =>
-        prev.map((u) =>
-          u.email && u.email.trim().toLowerCase() === agent.email.trim().toLowerCase()
-            ? { ...u, role: 'delivery' }
-            : u
-        )
-      );
-
-      // If the approved agent is currently logged in, upgrade their role immediately to 'delivery'
-      if (currentUser.email && currentUser.email.trim().toLowerCase() === agent.email.trim().toLowerCase()) {
+      setUserAccounts((prev) => prev.map((u) => u.email && agent.email && u.email.trim().toLowerCase() === agent.email.trim().toLowerCase() ? { ...u, role: 'delivery' } : u));
+      if (currentUser.email && agent.email && currentUser.email.trim().toLowerCase() === agent.email.trim().toLowerCase()) {
         setCurrentUser((prev) => ({ ...prev, role: 'delivery' }));
         setActiveRole('delivery');
       }
-
-      setNotifications((prev) => [
-        {
-          id: `n-${Date.now()}`,
-          title: 'Delivery Rider Application APPROVED! 🚚',
-          message: `Congratulations ${agent.name}! Your delivery rider account has been APPROVED by Admin. Access your Logistics Dashboard now!`,
-          targetRole: 'Delivery',
-          targetUserId: agent.id,
-          time: 'Just now',
-          read: false,
-        },
-        ...prev,
-      ]);
-    }
-
-    return { success: true, message: `Delivery Rider ${agent?.name || ''} approved successfully!` };
-  };
-
-  const suspendDeliveryAgent = (agentId) => {
-    setDeliveryAgents((prev) =>
-      prev.map((d) => (d.id === agentId ? { ...d, status: 'Suspended' } : d))
-    );
-  };
-
-  // Vendor Payout Request (Min BDT 500 requirement)
-  const requestVendorPayout = (vendorId, vendorName, amount, bankDetails) => {
-    if (amount < 500) {
-      return { success: false, message: 'Minimum payout amount requirement is BDT 500.' };
-    }
-
-    const newPayout = {
-      id: `PAY-${Math.floor(1000 + Math.random() * 9000)}`,
-      vendorId,
-      vendorName,
-      amount: Number(amount),
-      bankDetails,
-      date: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`,
-      status: 'Pending Admin Approval',
-    };
-
-    setPayoutRequests((prev) => [newPayout, ...prev]);
-
-    setNotifications((prev) => [
-      {
+      const notif = {
         id: `n-${Date.now()}`,
-        title: 'New Vendor Payout Request 💵',
-        message: `Vendor "${vendorName}" requested a payout of BDT ${amount.toLocaleString()} via ${bankDetails}.`,
-        targetRole: 'Admin',
-        time: 'Just now',
+        title: 'Delivery Rider Application APPROVED! 🚚',
+        message: `Congratulations ${agent.name}! Your delivery rider account has been APPROVED by Admin.`,
+        target_role: 'Delivery',
+        target_user_id: agent.id,
+        date: 'Just now',
         read: false,
-      },
-      ...prev,
-    ]);
-
-    return { success: true, message: `Payout request of BDT ${amount.toLocaleString()} submitted to Admin for approval!` };
-  };
-
-  // Admin Processes & Verifies Vendor Payout (Approve/Release/Reject)
-  const processVendorPayout = (payoutId, isApproved, transferRef = '', note = '') => {
-    setPayoutRequests((prev) =>
-      prev.map((p) => {
-        if (p.id === payoutId) {
-          const updatedStatus = isApproved ? 'Approved' : 'Rejected';
-          const defaultTrx = `TRX-${Math.floor(100000 + Math.random() * 900000)}`;
-
-          if (isApproved) {
-            setNotifications((nPrev) => [
-              {
-                id: `n-${Date.now()}`,
-                title: 'Vendor Payout Verified & Released! 💰',
-                message: `Admin verified & released payout #${payoutId} for BDT ${p.amount.toLocaleString()}. Ref TrxID: ${transferRef || defaultTrx}. Money deducted from your available seller payout balance!`,
-                targetRole: 'Vendor',
-                targetVendorId: p.vendorId,
-                time: 'Just now',
-                read: false,
-              },
-              ...nPrev,
-            ]);
-          }
-
-          return {
-            ...p,
-            status: updatedStatus,
-            transferRef: isApproved ? (transferRef || defaultTrx) : 'N/A',
-            adminNote: note || (isApproved ? 'Admin verified payout transfer.' : 'Payout request rejected by Admin.'),
-            processedDate: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`,
-          };
-        }
-        return p;
-      })
-    );
-  };
-
-  // Delivery Rider Payout Request (Minimum BDT 100 requirement)
-  const requestDeliveryPayout = (driverId, driverName, driverEmail, driverPhone, amount, paymentMethod, accountDetails, note = '') => {
-    const numAmount = Number(amount);
-    if (numAmount < 100) {
-      return { success: false, message: 'Minimum delivery commission withdrawal amount is BDT 100.' };
+      };
+      await supabase.from('notifications').insert(notif);
+      setNotifications((prev) => [{...notif, targetRole: 'Delivery', targetUserId: agent.id}, ...prev]);
     }
-
-    const newPayout = {
-      id: `RPAY-${Math.floor(1000 + Math.random() * 9000)}`,
-      type: 'delivery',
-      driverId,
-      driverName,
-      driverEmail,
-      driverPhone,
-      amount: numAmount,
-      paymentMethod,
-      accountDetails,
-      note,
-      date: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`,
-      status: 'Pending Admin Approval',
-      transferRef: 'Pending Admin Transfer',
-    };
-
-    setPayoutRequests((prev) => [newPayout, ...prev]);
-
-    setNotifications((prev) => [
-      {
-        id: `n-${Date.now()}`,
-        title: 'New Delivery Rider Payout Request 🛵',
-        message: `Rider "${driverName}" requested a commission payout of BDT ${numAmount.toLocaleString()} via ${paymentMethod} (${accountDetails}).`,
-        targetRole: 'Admin',
-        time: 'Just now',
-        read: false,
-      },
-      ...prev,
-    ]);
-
-    return { success: true, message: `Withdrawal request of BDT ${numAmount.toLocaleString()} submitted to Admin for approval!` };
+    return { success: true, message: 'Approved successfully!' };
   };
 
-  // Admin Processes & Verifies Delivery Rider Payout (Approve/Release/Reject)
-  const processDeliveryPayout = (payoutId, isApproved, transferRef = '', note = '') => {
-    let targetPayout = null;
-
-    setPayoutRequests((prev) =>
-      prev.map((p) => {
-        if (p.id === payoutId) {
-          targetPayout = p;
-          const updatedStatus = isApproved ? 'Approved' : 'Rejected';
-          const defaultTrx = `TRX-${Math.floor(100000 + Math.random() * 900000)}`;
-          const finalTrx = isApproved ? (transferRef || defaultTrx) : 'N/A';
-
-          return {
-            ...p,
-            status: updatedStatus,
-            transferRef: finalTrx,
-            adminNote: note || (isApproved ? 'Admin verified & released rider payout.' : 'Payout request rejected by Admin.'),
-            processedDate: `${new Date().toISOString().split('T')[0]} ${new Date().toTimeString().slice(0, 5)}`,
-          };
-        }
-        return p;
-      })
-    );
-
-    if (targetPayout) {
-      const notifTitle = isApproved ? 'Delivery Commission Payout Approved! 🛵💰' : 'Rider Payout Request Rejected ❌';
-      const notifMsg = isApproved
-        ? `Admin approved & released your delivery commission payout #${payoutId} for BDT ${targetPayout.amount.toLocaleString()} via ${targetPayout.paymentMethod}. TrxID: ${transferRef || 'TRX-RELEASED'}. Funds deducted from your commission balance!`
-        : `Your payout request #${payoutId} for BDT ${targetPayout.amount.toLocaleString()} was rejected by Admin. ${note || ''}`;
-
-      setNotifications((nPrev) => [
-        {
-          id: `n-${Date.now()}`,
-          title: notifTitle,
-          message: notifMsg,
-          targetRole: 'Delivery',
-          targetUserId: targetPayout.driverId,
-          targetUserEmail: targetPayout.driverEmail,
-          time: 'Just now',
-          read: false,
-        },
-        ...nPrev,
-      ]);
-    }
+  const suspendDeliveryAgent = async (agentId) => {
+    await supabase.from('delivery_agents').update({ status: 'Suspended' }).eq('id', agentId);
+    setDeliveryAgents((prev) => prev.map((d) => (d.id === agentId ? { ...d, status: 'Suspended' } : d)));
   };
 
-  // Voucher Handlers: Login required to collect vouchers
+  const requestVendorPayout = async (vendorId, vendorName, amount, bankDetails) => {
+    if (amount < 500) return { success: false, message: 'Minimum payout amount requirement is BDT 500.' };
+    const newPayout = { id: `PAY-${Math.floor(1000 + Math.random() * 9000)}`, vendor_id: vendorId, vendor_name: vendorName, amount: Number(amount), bank_details: bankDetails, date: `${new Date().toISOString().split('T')[0]}`, status: 'Pending Approval' };
+    await supabase.from('payout_requests').insert(newPayout);
+    setPayoutRequests((prev) => [{...newPayout, vendorId, vendorName, bankDetails: newPayout.bank_details}, ...prev]);
+    const notif = { id: `n-${Date.now()}`, title: 'New Vendor Payout Request 💵', message: `Vendor "${vendorName}" requested BDT ${amount}.`, target_role: 'Admin', date: 'Just now', read: false };
+    await supabase.from('notifications').insert(notif);
+    setNotifications((prev) => [{...notif, targetRole: 'Admin'}, ...prev]);
+    return { success: true, message: 'Submitted!' };
+  };
+
+  const processVendorPayout = async (payoutId, isApproved, transferRef = '', note = '') => {
+    const updatedStatus = isApproved ? 'Approved' : 'Rejected';
+    await supabase.from('payout_requests').update({ status: updatedStatus }).eq('id', payoutId);
+    setPayoutRequests((prev) => prev.map((p) => p.id === payoutId ? { ...p, status: updatedStatus } : p));
+  };
+
+  const requestDeliveryPayout = async (driverId, driverName, driverEmail, driverPhone, amount, paymentMethod, accountDetails, note = '') => {
+    if (amount < 100) return { success: false, message: 'Min BDT 100.' };
+    const newPayout = { id: `RPAY-${Math.floor(1000 + Math.random() * 9000)}`, type: 'delivery', driver_name: driverName, amount: Number(amount), bank_details: accountDetails, date: `${new Date().toISOString().split('T')[0]}`, status: 'Pending Approval' };
+    await supabase.from('payout_requests').insert(newPayout);
+    setPayoutRequests((prev) => [{...newPayout, driverId, driverName, bankDetails: accountDetails}, ...prev]);
+    return { success: true, message: 'Submitted!' };
+  };
+
+  const processDeliveryPayout = async (payoutId, isApproved, transferRef = '', note = '') => {
+    const updatedStatus = isApproved ? 'Approved' : 'Rejected';
+    await supabase.from('payout_requests').update({ status: updatedStatus }).eq('id', payoutId);
+    setPayoutRequests((prev) => prev.map((p) => p.id === payoutId ? { ...p, status: updatedStatus } : p));
+  };
+
+
   const collectVoucher = (code) => {
     if (!currentUser || !currentUser.isAuthenticated || currentUser.id === 'guest' || !currentUser.email) {
       setIsLoginModalOpen(true);
       return false;
     }
-
     const coupon = coupons.find((c) => c.code.toUpperCase() === code.toUpperCase().trim());
     if (!coupon) return false;
-
     if (!collectedVouchers.includes(coupon.code)) {
       setCollectedVouchers((prev) => [...prev, coupon.code]);
     }
@@ -754,686 +477,354 @@ export const AppProvider = ({ children }) => {
 
   const applyCoupon = (code, cartSubtotal) => {
     const coupon = coupons.find((c) => c.code.toUpperCase() === code.toUpperCase().trim());
-    if (!coupon) {
-      return { success: false, message: 'Invalid coupon code. Try KINBO10 or DARAZ20!' };
-    }
-    if (cartSubtotal < coupon.minSpend) {
-      return {
-        success: false,
-        message: `Minimum spend of BDT ${coupon.minSpend.toLocaleString()} required for ${coupon.code}.`,
-      };
-    }
+    if (!coupon) return { success: false, message: 'Invalid coupon code.' };
+    if (cartSubtotal < (coupon.minSpend || 0)) return { success: false, message: 'Minimum spend not met.' };
     setAppliedCoupon(coupon);
-    if (!collectedVouchers.includes(coupon.code)) {
-      setCollectedVouchers((prev) => [...prev, coupon.code]);
-    }
-    return { success: true, message: `Coupon ${coupon.code} applied successfully!` };
+    if (!collectedVouchers.includes(coupon.code)) setCollectedVouchers((prev) => [...prev, coupon.code]);
+    return { success: true, message: 'Coupon applied!' };
   };
 
   const removeCoupon = () => setAppliedCoupon(null);
 
-  // Admin Adds Public Platform Voucher
-  const addPublicVoucher = (voucherData) => {
+  const addPublicVoucher = async (voucherData) => {
     const newVoucher = {
+      id: `c${Date.now()}`,
       code: voucherData.code.toUpperCase().trim(),
-      discountType: voucherData.discountType, // 'percent' | 'flat'
+      discount_type: voucherData.discountType,
       amount: Number(voucherData.amount),
-      minSpend: Number(voucherData.minSpend || 0),
+      min_spend: Number(voucherData.minSpend || 0),
       description: voucherData.description,
-      scope: 'public',
-      vendorId: null,
-      vendorName: 'Kinbo Marketplace',
     };
-
-    setCoupons((prev) => [newVoucher, ...prev.filter((c) => c.code !== newVoucher.code)]);
-
-    setNotifications((prev) => [
-      {
-        id: `n-${Date.now()}`,
-        title: 'New Platform Voucher Released! 🎟️',
-        message: `Admin released voucher "${newVoucher.code}" (${newVoucher.discountType === 'percent' ? `${newVoucher.amount}% OFF` : `BDT ${newVoucher.amount} OFF`})! Collect now.`,
-        targetRole: 'Customer',
-        time: 'Just now',
-        read: false,
-      },
-      ...prev,
-    ]);
-
-    return { success: true, message: `Public Voucher ${newVoucher.code} created successfully!` };
+    await supabase.from('coupons').insert(newVoucher);
+    setCoupons((prev) => [{...newVoucher, discountType: newVoucher.discount_type, minSpend: newVoucher.min_spend}, ...prev.filter((c) => c.code !== newVoucher.code)]);
+    return { success: true, message: 'Public Voucher Published!' };
   };
 
-  // Vendor Adds Store-Specific Individual Voucher
-  const addVendorVoucher = (vendorId, vendorName, voucherData) => {
-    const newVoucher = {
-      code: voucherData.code.toUpperCase().trim(),
-      discountType: voucherData.discountType, // 'percent' | 'flat'
-      amount: Number(voucherData.amount),
-      minSpend: Number(voucherData.minSpend || 0),
-      description: voucherData.description,
-      scope: 'vendor',
-      vendorId,
-      vendorName,
-    };
-
-    setCoupons((prev) => [newVoucher, ...prev.filter((c) => c.code !== newVoucher.code)]);
-
-    return { success: true, message: `Store Voucher ${newVoucher.code} created for ${vendorName}!` };
-  };
-
-  const deleteVoucher = (code) => {
-    setCoupons((prev) => prev.filter((c) => c.code !== code));
-  };
-
-  // Cart Handlers
-  const addToCart = (product, quantity = 1) => {
-    if (!currentUser || !currentUser.isAuthenticated || currentUser.id === 'guest' || !currentUser.email) {
-      setIsLoginModalOpen(true);
-      return false;
-    }
-
-    // Block Vendors from buying their own store products
-    const isVendorUser = currentUser.role === 'vendor' || activeRole === 'vendor' || currentUser.vendorId;
-    if (isVendorUser) {
-      const isOwnProduct =
-        (currentUser.vendorId && product.vendorId === currentUser.vendorId) ||
-        (product.vendorName && currentUser.name && product.vendorName.toLowerCase() === currentUser.name.toLowerCase()) ||
-        (product.vendorName && currentUser.ownerName && product.vendorName.toLowerCase() === currentUser.ownerName.toLowerCase());
-
-      if (isOwnProduct) {
-        showAlert('Vendor Self-Purchase Restricted', `🚫 Vendors cannot purchase products from their own store (${product.vendorName})!\nTo buy products from another seller store, please select items from other vendors.`, 'error');
-        return false;
+  const addToCart = (product, quantity = 1, silent = false) => {
+    setCart((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
+      if (existing) {
+        return prev.map((item) => item.id === product.id ? { ...item, quantity: item.quantity + quantity } : item);
       }
-    }
-
-    setCart((prevCart) => {
-      const existingIndex = prevCart.findIndex((item) => item.id === product.id);
-      if (existingIndex > -1) {
-        const updated = [...prevCart];
-        updated[existingIndex].quantity += quantity;
-        return updated;
-      }
-      return [...prevCart, { ...product, quantity }];
+      return [...prev, { ...product, quantity }];
     });
-    return true;
+    if (!silent) {
+      showAlert('Success', `${product.title} added to your cart!`, 'success');
+    }
   };
 
-  const updateCartQuantity = (productId, delta) => {
-    setCart((prevCart) =>
-      prevCart
-        .map((item) => {
-          if (item.id === productId) {
-            const newQty = item.quantity + delta;
-            return newQty > 0 ? { ...item, quantity: newQty } : null;
-          }
-          return item;
-        })
-        .filter(Boolean)
-    );
+  const updateCartQuantity = (productId, newQuantity) => {
+    if (newQuantity < 1) {
+      setCart((prev) => prev.filter((item) => item.id !== productId));
+    } else {
+      setCart((prev) => prev.map((item) => item.id === productId ? { ...item, quantity: newQuantity } : item));
+    }
   };
 
   const removeFromCart = (productId) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== productId));
+    setCart((prev) => prev.filter((item) => item.id !== productId));
   };
 
-  const clearCart = () => {
-    setCart([]);
-    setAppliedCoupon(null);
-  };
+  const clearCart = () => setCart([]);
 
-  // Place Order
-  const placeOrder = (orderData) => {
-    const newOrderId = `ORD-${Math.floor(10000 + Math.random() * 90000)}`;
-    const now = new Date();
-    const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-
-    const isMFS = orderData.paymentMethod === 'bKash' || orderData.paymentMethod === 'Nagad';
-    const initialStatus = isMFS ? 'Pending Verification' : 'Pending';
-
-    const newOrder = {
-      id: newOrderId,
-      customerId: currentUser.id,
-      customerName: currentUser.name,
-      customerEmail: currentUser.email,
-      customerPhone: orderData.phone || currentUser.phone,
-      shippingAddress: orderData.address,
-      date: dateStr,
-      items: cart.map((item) => ({
-        productId: item.id,
-        title: item.title,
-        price: item.price,
-        quantity: item.quantity,
-        vendorId: item.vendorId,
-        vendorName: item.vendorName,
-        image: item.image,
-      })),
-      subtotal: orderData.subtotal,
-      discountAmount: orderData.discountAmount || 0,
-      couponCode: orderData.couponCode || 'N/A',
-      shippingFee: orderData.shippingFee,
-      total: orderData.total,
-      paymentMethod: orderData.paymentMethod,
-      paymentTrxId: orderData.paymentTrxId || 'N/A',
-      paymentStatus: isMFS ? 'Pending Verification' : 'Pending',
-      status: initialStatus,
-      deliveryDriver: 'Jalal Uddin',
-      statusLogs: [
-        {
-          status: initialStatus,
-          time: dateStr,
-          note: isMFS
-            ? `${orderData.paymentMethod} TrxID ${orderData.paymentTrxId} submitted. Pending Admin MFS Verification.`
-            : `Order placed on Kinbo via ${orderData.paymentMethod}`,
-        },
-      ],
-    };
-
-    setOrders((prev) => [newOrder, ...prev]);
-
-    setProducts((prevProducts) =>
-      prevProducts.map((p) => {
-        const orderedItem = cart.find((ci) => ci.id === p.id);
-        if (orderedItem) {
-          return { ...p, stock: Math.max(0, p.stock - orderedItem.quantity) };
-        }
-        return p;
-      })
-    );
-
-    clearCart();
-
-    if (isMFS) {
-      setNotifications((prev) => [
-        {
-          id: `n-${Date.now()}`,
-          title: 'MFS Transaction Verification Required 💳',
-          message: `Order #${newOrderId} requires MFS TrxID verification (${orderData.paymentMethod}: ${orderData.paymentTrxId}).`,
-          targetRole: 'Admin',
-          time: 'Just now',
-          read: false,
-        },
-        ...prev,
-      ]);
-    }
-
-    return newOrderId;
-  };
-
-  const verifyMFSOrder = (orderId, isApproved, note = '') => {
-    const now = new Date();
-    const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-    const targetOrder = orders.find((o) => o.id === orderId);
-
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => {
-        if (order.id === orderId) {
-          if (isApproved) {
-            return {
-              ...order,
-              paymentStatus: 'Paid',
-              status: 'Confirmed',
-              statusLogs: [
-                ...(order.statusLogs || []),
-                { status: 'Confirmed', time: dateStr, note: note || 'Admin verified MFS Merchant Account transaction.' },
-              ],
-            };
-          } else {
-            return {
-              ...order,
-              paymentStatus: 'Failed',
-              status: 'Cancelled',
-              statusLogs: [
-                ...(order.statusLogs || []),
-                { status: 'Cancelled', time: dateStr, note: note || 'Admin rejected MFS TrxID as invalid transaction.' },
-              ],
-            };
-          }
-        }
-        return order;
-      })
-    );
-
-    if (targetOrder) {
-      const notifTitle = isApproved ? 'MFS Payment Verified! 💳' : 'MFS Payment Failed ⚠️';
-      const notifMsg = isApproved
-        ? `Your ${targetOrder.paymentMethod} payment for Order #${targetOrder.id} has been verified by Admin. Order is confirmed!`
-        : `Admin could not verify TrxID ${targetOrder.paymentTrxId} for Order #${targetOrder.id}. Order has been cancelled.`;
-
-      setNotifications((prev) => [
-        {
-          id: `n-${Date.now()}`,
-          title: notifTitle,
-          message: notifMsg,
-          targetRole: 'Customer',
-          targetUserId: targetOrder.customerId,
-          targetUserEmail: targetOrder.customerEmail,
-          time: 'Just now',
-          read: false,
-        },
-        ...prev,
-      ]);
-    }
-  };
-
-  const vendorProcessOrder = (orderId, action, note = '') => {
-    const now = new Date();
-    const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-    const targetOrder = orders.find((o) => o.id === orderId);
-
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => {
-        if (order.id === orderId) {
-          if (action === 'accept') {
-            return {
-              ...order,
-              status: 'Processing',
-              statusLogs: [
-                ...(order.statusLogs || []),
-                { status: 'Processing', time: dateStr, note: note || 'Vendor accepted & packed order.' },
-              ],
-            };
-          } else {
-            return {
-              ...order,
-              status: 'Cancelled',
-              paymentStatus: 'Pending Refund',
-              statusLogs: [
-                ...(order.statusLogs || []),
-                { status: 'Cancelled', time: dateStr, note: note || 'Vendor cancelled order. Customer refund pending Admin approval.' },
-              ],
-            };
-          }
-        }
-        return order;
-      })
-    );
-
-    if (targetOrder) {
-      const isAccept = action === 'accept';
-      if (isAccept) {
-        setNotifications((prev) => [
-          {
-            id: `n-${Date.now()}`,
-            title: 'Order Packed & Accepted! 📦',
-            message: `Seller has packed your items for Order #${targetOrder.id}. Status is now "Processing"!`,
-            targetRole: 'Customer',
-            targetUserId: targetOrder.customerId,
-            targetUserEmail: targetOrder.customerEmail,
-            time: 'Just now',
-            read: false,
-          },
-          ...prev,
-        ]);
-      } else {
-        // Send Admin Refund Alert
-        setNotifications((prev) => [
-          {
-            id: `n-${Date.now()}`,
-            title: '⚠️ Order Refund Required!',
-            message: `Vendor cancelled Order #${targetOrder.id} (BDT ${targetOrder.total.toLocaleString()} via ${targetOrder.paymentMethod}). Please approve customer refund release!`,
-            targetRole: 'Admin',
-            time: 'Just now',
-            read: false,
-          },
-          {
-            id: `n-${Date.now() + 1}`,
-            title: 'Order Cancelled by Seller ❌',
-            message: `Seller was unable to fulfill Order #${targetOrder.id}. Customer refund request of BDT ${targetOrder.total.toLocaleString()} has been submitted to Admin for approval.`,
-            targetRole: 'Customer',
-            targetUserId: targetOrder.customerId,
-            targetUserEmail: targetOrder.customerEmail,
-            time: 'Just now',
-            read: false,
-          },
-          ...prev,
-        ]);
-      }
-    }
-  };
-
-  const processCustomerRefund = (orderId, isApproved, refundTrxId = '', note = '') => {
-    const now = new Date();
-    const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-    let targetOrder = null;
-
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => {
-        if (order.id === orderId) {
-          targetOrder = order;
-          const finalStatus = isApproved ? 'Done' : 'Refund Rejected';
-          const defaultTrx = `REF-TRX-${Math.floor(100000 + Math.random() * 900000)}`;
-          const refRef = isApproved ? (refundTrxId || defaultTrx) : 'N/A';
-
-          return {
-            ...order,
-            paymentStatus: finalStatus,
-            refundRefTrxId: refRef,
-            statusLogs: [
-              ...(order.statusLogs || []),
-              {
-                status: 'Refund Released & Done',
-                time: dateStr,
-                note: note || (isApproved ? `Admin approved & transferred BDT ${order.total.toLocaleString()} refund via ${order.paymentMethod} (Ref TrxID: ${refRef}). Status set to Done.` : 'Admin rejected customer refund request.'),
-              },
-            ],
-          };
-        }
-        return order;
-      })
-    );
-
-    if (targetOrder) {
-      const notifTitle = isApproved ? 'Customer Refund Transferred & Status Done! 💸' : 'Refund Request Rejected ❌';
-      const notifMsg = isApproved
-        ? `Great news! Admin released your refund of BDT ${targetOrder.total.toLocaleString()} for Order #${targetOrder.id} via ${targetOrder.paymentMethod}. Status set to Done! Ref TrxID: ${refundTrxId || 'REF-RELEASED'}.`
-        : `Admin declined the refund request for Order #${targetOrder.id}. ${note || ''}`;
-
-      setNotifications((prev) => [
-        {
-          id: `n-${Date.now()}`,
-          title: notifTitle,
-          message: notifMsg,
-          targetRole: 'Customer',
-          targetUserId: targetOrder.customerId,
-          targetUserEmail: targetOrder.customerEmail,
-          time: 'Just now',
-          read: false,
-        },
-        ...prev,
-      ]);
-    }
-  };
-
-  const driverProcessDelivery = (orderId, action, driverName = 'Jalal Uddin', note = '') => {
-    const now = new Date();
-    const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-    const actualDriver = (currentUser && currentUser.name) || driverName || 'Delivery Courier';
-    const targetOrder = orders.find((o) => o.id === orderId);
-
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => {
-        if (order.id === orderId) {
-          if (action === 'Shipped' || action === 'accept_task' || action === 'pickup') {
-            return {
-              ...order,
-              status: 'Shipped',
-              deliveryDriver: actualDriver,
-              statusLogs: [
-                ...(order.statusLogs || []),
-                { status: 'Shipped', time: dateStr, note: note || `Driver ${actualDriver} picked up package & started delivery.` },
-              ],
-            };
-          } else if (action === 'Delivered' || action === 'deliver_success') {
-            return {
-              ...order,
-              status: 'Delivered',
-              paymentStatus: 'Paid',
-              deliveryDriver: actualDriver,
-              statusLogs: [
-                ...(order.statusLogs || []),
-                { status: 'Delivered', time: dateStr, note: note || `Package delivered by ${actualDriver} successfully.` },
-              ],
-            };
-          } else if (action === 'Delivery Failed' || action === 'deliver_failed') {
-            return {
-              ...order,
-              status: 'Delivery Failed',
-              deliveryDriver: actualDriver,
-              statusLogs: [
-                ...(order.statusLogs || []),
-                { status: 'Delivery Failed', time: dateStr, note: note || `Delivery failed by ${actualDriver}.` },
-              ],
-            };
-          }
-        }
-        return order;
-      })
-    );
-
-    if (targetOrder) {
-      let notifTitle = '';
-      let notifMsg = '';
-
-      if (action === 'Shipped' || action === 'accept_task' || action === 'pickup') {
-        notifTitle = 'Package Out for Delivery! 🚚';
-        notifMsg = `Rider ${actualDriver} has picked up your package for Order #${targetOrder.id}! Delivery is in progress to ${targetOrder.shippingAddress}.`;
-      } else if (action === 'Delivered' || action === 'deliver_success') {
-        notifTitle = 'Package Delivered Successfully! 🎁';
-        notifMsg = `Great news! Your Order #${targetOrder.id} has been delivered by ${actualDriver}. Thank you for shopping on Kinbo!`;
-      } else if (action === 'Delivery Failed' || action === 'deliver_failed') {
-        notifTitle = 'Delivery Attempt Failed ⚠️';
-        notifMsg = `Rider ${actualDriver} was unable to complete delivery for Order #${targetOrder.id}. Refund process active (3 Working Days).`;
-      }
-
-      if (notifTitle) {
-        setNotifications((prev) => [
-          {
-            id: `n-${Date.now()}`,
-            title: notifTitle,
-            message: notifMsg,
-            targetRole: 'Customer',
-            targetUserId: targetOrder.customerId,
-            targetUserEmail: targetOrder.customerEmail,
-            time: 'Just now',
-            read: false,
-          },
-          ...prev,
-        ]);
-      }
-    }
-  };
-
-  const retryPayment = (orderId, newPaymentMethod, newPaymentTrxId = '') => {
-    const now = new Date();
-    const dateStr = `${now.toISOString().split('T')[0]} ${now.toTimeString().slice(0, 5)}`;
-    const isMFS = newPaymentMethod === 'bKash' || newPaymentMethod === 'Nagad';
-
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => {
-        if (order.id === orderId) {
-          return {
-            ...order,
-            paymentMethod: newPaymentMethod,
-            paymentTrxId: newPaymentTrxId || 'N/A',
-            paymentStatus: isMFS ? 'Pending Verification' : 'Pending',
-            status: isMFS ? 'Pending Verification' : 'Confirmed',
-            statusLogs: [
-              ...(order.statusLogs || []),
-              { status: 'Pending Verification', time: dateStr, note: `Customer retried payment via ${newPaymentMethod}.` },
-            ],
-          };
-        }
-        return order;
-      })
-    );
-  };
-
-  const addProduct = (productData) => {
-    const currentVendor = vendors.find((v) => v.id === activeVendorId || v.email === currentUser.email) || vendors[0];
+  const addProduct = async (productData) => {
+    const vendor = vendors.find((v) => v.id === activeVendorId);
     const newProduct = {
-      id: `p-${Date.now()}`,
-      vendorId: currentVendor.id,
-      vendorName: currentVendor.name,
+      id: `p${Date.now()}`,
       title: productData.title,
-      brand: productData.brand || currentVendor.name,
+      brand: productData.brand || 'Generic',
       category: productData.category,
       price: Number(productData.price),
-      originalPrice: Number(productData.originalPrice || productData.price),
+      original_price: Number(productData.originalPrice) || Number(productData.price),
       stock: Number(productData.stock),
-      rating: 5.0,
-      reviewCount: 0,
+      rating: 0,
+      review_count: 0,
       image: productData.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
-      description: productData.description,
-      featured: productData.featured || false,
-      onSale: true,
-      discountPercent: 10,
-    };
-    setProducts((prev) => [newProduct, ...prev]);
-  };
-
-  const deleteProduct = (productId) => {
-    setProducts((prev) => prev.filter((p) => p.id !== productId));
-  };
-
-  const archiveOrder = (orderId) => {
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => {
-        if (order.id === orderId) {
-          return { ...order, isArchived: true };
-        }
-        return order;
-      })
-    );
-  };
-
-  const addReview = (reviewData) => {
-    const prodId = reviewData.productId;
-    const userEmail = currentUser?.email?.toLowerCase() || '';
-    const userId = currentUser?.id || '';
-
-    // Check if customer already submitted a review for this product
-    const alreadyReviewed = reviews.some(
-      (r) =>
-        r.productId === prodId &&
-        ((userEmail && r.userEmail && r.userEmail.toLowerCase() === userEmail) ||
-          (userId && r.userId && r.userId === userId) ||
-          (reviewData.orderId && r.orderId && r.orderId === reviewData.orderId))
-    );
-
-    if (alreadyReviewed) {
-      return { success: false, message: 'You have already submitted a review for this product!' };
-    }
-
-    const newReview = {
-      id: `r-${Date.now()}`,
-      productId: prodId,
-      orderId: reviewData.orderId || 'N/A',
-      userId: userId,
-      userEmail: userEmail,
-      userName: currentUser.name || 'Verified Customer',
-      userRole: 'Customer',
-      rating: Number(reviewData.rating),
-      comment: reviewData.comment,
+      description: productData.description || '',
+      featured: false,
+      on_sale: Number(productData.price) < Number(productData.originalPrice),
+      discount_percent: Number(productData.originalPrice) > Number(productData.price) ? Math.round(((Number(productData.originalPrice) - Number(productData.price)) / Number(productData.originalPrice)) * 100) : 0,
+      vendor_id: activeVendorId,
+      vendor_name: vendor?.name || 'Unknown Vendor',
       date: new Date().toISOString().split('T')[0],
     };
 
-    setReviews((prev) => [newReview, ...prev]);
-    return { success: true, message: 'Thank you for your feedback! Review published successfully.' };
+    await supabase.from('products').insert(newProduct);
+    setProducts((prev) => [{...newProduct, originalPrice: newProduct.original_price, reviewCount: 0, vendorId: activeVendorId, vendorName: newProduct.vendor_name}, ...prev]);
   };
 
-  // Notification Management Handlers
-  const markNotificationsAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  const updateProduct = async (productId, updatedData) => {
+    const dbUpdate = {
+      title: updatedData.title,
+      price: Number(updatedData.price),
+      original_price: Number(updatedData.originalPrice),
+      stock: Number(updatedData.stock),
+      category: updatedData.category,
+      brand: updatedData.brand,
+      description: updatedData.description,
+      image: updatedData.image
+    };
+    await supabase.from('products').update(dbUpdate).eq('id', productId);
+    setProducts((prev) => prev.map((p) => p.id === productId ? { ...p, ...updatedData, originalPrice: Number(updatedData.originalPrice) } : p));
   };
 
-  const clearNotification = (notificationId) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+  const deleteProduct = async (productId) => {
+    await supabase.from('products').delete().eq('id', productId);
+    setProducts((prev) => prev.filter((p) => p.id !== productId));
   };
 
-  const clearAllNotifications = () => {
-    setNotifications([]);
-  };
+  const placeOrder = async (orderData) => {
+    const newOrder = {
+      id: `ORD${Date.now()}`,
+      customer_id: currentUser.id,
+      customer_name: currentUser.name,
+      customer_email: currentUser.email,
+      customer_phone: orderData.phone,
+      items: cart,
+      total: Number(orderData.total),
+      status: orderData.paymentMethod === 'Cash on Delivery' ? 'Processing' : 'Pending Verification',
+      date: new Date().toISOString(),
+      payment_method: orderData.paymentMethod,
+      payment_status: 'Pending',
+      shipping_address: orderData.address,
+      delivery_fee: Number(orderData.shippingFee),
+      is_archived: false
+    };
 
-  // Custom Animated Popup State (Replaces browser native "localhost says..." dialogs)
-  const [customAlert, setCustomAlert] = useState({
-    isOpen: false,
-    title: '',
-    message: '',
-    type: 'info',
-  });
-
-  const showAlert = (titleOrMsg, message = '', type = 'info') => {
-    let finalTitle = titleOrMsg;
-    let finalMsg = message;
-    let finalType = type;
-
-    if (!message) {
-      finalMsg = titleOrMsg;
-      if (titleOrMsg.startsWith('❌') || titleOrMsg.startsWith('🚫') || titleOrMsg.startsWith('⚠️')) {
-        finalType = 'error';
-        finalTitle = 'Attention Required';
-      } else if (titleOrMsg.startsWith('✓') || titleOrMsg.startsWith('💸') || titleOrMsg.startsWith('🎁') || titleOrMsg.startsWith('⭐')) {
-        finalType = 'success';
-        finalTitle = 'Success!';
-      } else {
-        finalType = 'info';
-        finalTitle = 'Kinbo Marketplace Notice';
-      }
+    await supabase.from('orders').insert(newOrder);
+    setOrders((prev) => [
+      {
+        ...newOrder, 
+        customerId: currentUser.id, 
+        customerName: newOrder.customer_name, 
+        customerEmail: newOrder.customer_email,
+        customerPhone: newOrder.customer_phone,
+        paymentMethod: newOrder.payment_method, 
+        shippingAddress: newOrder.shipping_address
+      }, 
+      ...prev
+    ]);
+    clearCart();
+    
+    if (appliedCoupon && appliedCoupon.code !== 'KINBO10') {
+      removeCoupon();
     }
 
-    setCustomAlert({
-      isOpen: true,
-      title: finalTitle,
-      message: finalMsg,
-      type: finalType,
-    });
+    return newOrder.id;
   };
 
-  const closeAlert = () => {
-    setCustomAlert((prev) => ({ ...prev, isOpen: false }));
+  const notifyOrderStatusChange = async (order, newStatus, customMsg = '') => {
+    if (!order) return;
+    const msg = customMsg || `Order #${order.id} status is now: ${newStatus}`;
+    
+    const custNotif = {
+      id: `n-${Date.now()}-c`,
+      user_id: order.customerId,
+      title: 'Order Status Update 📦',
+      message: msg,
+      target_role: 'customer',
+      date: new Date().toISOString(),
+      read: false,
+    };
+    
+    const vendorIds = [...new Set((order.items || []).map(item => item.vendorId))];
+    const vendorNotifs = vendorIds.filter(Boolean).map((vId, idx) => ({
+      id: `n-${Date.now()}-v${idx}`,
+      user_id: vId,
+      title: 'Order Status Update 📦',
+      message: msg,
+      target_role: 'vendor',
+      date: new Date().toISOString(),
+      read: false,
+    }));
+    
+    const allNotifs = [custNotif, ...vendorNotifs];
+    await supabase.from('notifications').insert(allNotifs);
+    setNotifications((prev) => [
+      {...custNotif, userId: custNotif.user_id, targetRole: custNotif.target_role},
+      ...vendorNotifs.map(n => ({...n, userId: n.user_id, targetRole: n.target_role})),
+      ...prev
+    ]);
+  };
+
+  const updateOrderStatus = async (orderId, newStatus) => {
+    const order = orders.find(o => o.id === orderId);
+    await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+    notifyOrderStatusChange(order, newStatus);
+  };
+
+  const cancelOrder = async (orderId) => {
+    const order = orders.find(o => o.id === orderId);
+    await supabase.from('orders').update({ status: 'Cancelled' }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: 'Cancelled' } : o)));
+    notifyOrderStatusChange(order, 'Cancelled');
+  };
+
+  const assignDeliveryRider = async (orderId, riderId, riderName) => {
+    const order = orders.find(o => o.id === orderId);
+    await supabase.from('orders').update({ delivery_rider_id: riderId, delivery_rider_name: riderName, status: 'Out for Delivery' }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, deliveryRiderId: riderId, deliveryRiderName: riderName, status: 'Out for Delivery' } : o));
+    notifyOrderStatusChange(order, 'Out for Delivery', `Order #${orderId} has been assigned to rider ${riderName}.`);
+  };
+
+  const markOrderDelivered = async (orderId) => {
+    const order = orders.find(o => o.id === orderId);
+    await supabase.from('orders').update({ status: 'Delivered', payment_status: 'Paid' }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Delivered', paymentStatus: 'Paid' } : o));
+    notifyOrderStatusChange(order, 'Delivered', `Order #${orderId} has been successfully delivered!`);
+  };
+
+  const driverProcessDelivery = async (orderId, newStatus) => {
+    const order = orders.find(o => o.id === orderId);
+    if (newStatus === 'Delivered') {
+      await supabase.from('orders').update({ status: 'Delivered', payment_status: 'Paid' }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Delivered', paymentStatus: 'Paid' } : o));
+      notifyOrderStatusChange(order, 'Delivered', `Order #${orderId} has been successfully delivered!`);
+    } else if (newStatus === 'Delivery Failed') {
+      if (order && order.paymentMethod !== 'Cash on Delivery') {
+        await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Pending Refund' }).eq('id', orderId);
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Pending Refund' } : o));
+      } else {
+        await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Cancelled' }).eq('id', orderId);
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Cancelled' } : o));
+      }
+      notifyOrderStatusChange(order, 'Delivery Failed', `Order #${orderId} delivery attempt failed.`);
+    } else {
+      await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o));
+      notifyOrderStatusChange(order, newStatus);
+    }
+  };
+
+  const verifyAndAcceptPayment = async (orderId, adminNote = '') => {
+    const order = orders.find(o => o.id === orderId);
+    await supabase.from('orders').update({ payment_status: 'Paid', status: 'Processing' }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Paid', status: 'Processing' } : o));
+    notifyOrderStatusChange(order, 'Processing', `Payment verified for Order #${orderId}. Vendor is now packing your order.`);
+  };
+
+  const verifyMFSOrder = async (orderId, isVerified, adminNote = '') => {
+    const order = orders.find(o => o.id === orderId);
+    if (isVerified) {
+      await supabase.from('orders').update({ payment_status: 'Paid', status: 'Processing' }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Paid', status: 'Processing' } : o));
+      showAlert('Payment Verified', `Order ${orderId} MFS payment confirmed!`, 'success');
+      notifyOrderStatusChange(order, 'Processing', `MFS Payment verified for Order #${orderId}. Vendor is processing.`);
+    } else {
+      await supabase.from('orders').update({ payment_status: 'Failed', status: 'Cancelled' }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Failed', status: 'Cancelled' } : o));
+      showAlert('Payment Rejected', `Order ${orderId} MFS payment was rejected.`, 'error');
+      notifyOrderStatusChange(order, 'Cancelled', `MFS Payment rejected for Order #${orderId}.`);
+    }
+  };
+
+  const vendorProcessOrder = async (orderId, action, vendorNote = '') => {
+    const order = orders.find(o => o.id === orderId);
+    if (action === 'accept') {
+      await supabase.from('orders').update({ status: 'Ready for Courier' }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Ready for Courier' } : o));
+      showAlert('Order Accepted', `Order ${orderId} is now Ready for Courier.`, 'success');
+      notifyOrderStatusChange(order, 'Ready for Courier', `Vendor accepted Order #${orderId} and is ready for pickup.`);
+    } else if (action === 'reject') {
+      if (order && order.paymentMethod !== 'Cash on Delivery') {
+        await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Pending Refund' }).eq('id', orderId);
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Pending Refund' } : o));
+        showAlert('Order Rejected', `Order cancelled. Refund request sent to Admin.`, 'info');
+      } else {
+        await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Cancelled' }).eq('id', orderId);
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Cancelled' } : o));
+        showAlert('Order Rejected', `COD Order cancelled.`, 'info');
+      }
+      notifyOrderStatusChange(order, 'Cancelled', `Vendor rejected Order #${orderId}.`);
+    }
+  };
+
+  const processRefund = async (orderId, refundRef = '') => {
+    await supabase.from('orders').update({ payment_status: 'Refunded', status: 'Cancelled', refund_ref_trx_id: refundRef }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Refunded', status: 'Cancelled', refundRefTrxId: refundRef } : o));
+  };
+
+  const processCustomerRefund = async (orderId, isApproved, refundTrxId = '', refundNote = '') => {
+    if (isApproved) {
+      await supabase.from('orders').update({ payment_status: 'Refunded', status: 'Cancelled', refund_ref_trx_id: refundTrxId }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Refunded', status: 'Cancelled', refundRefTrxId: refundTrxId } : o));
+      showAlert('Refund Processed', `Order ${orderId} refund completed successfully.`, 'success');
+    } else {
+      await supabase.from('orders').update({ status: 'Processing' }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Processing' } : o));
+      showAlert('Refund Declined', `Order ${orderId} refund was declined.`, 'error');
+    }
+  };
+
+  const deleteVoucher = async (code) => {
+    await supabase.from('coupons').delete().eq('code', code.toUpperCase());
+    setCoupons((prev) => prev.filter((c) => c.code !== code.toUpperCase()));
+    showAlert('Voucher Deleted', `Voucher ${code} removed successfully.`, 'success');
+  };
+
+  const clearDeliveredOrderTracking = async (orderId) => {
+    await supabase.from('orders').update({ is_archived: true }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, isArchived: true } : o)));
+  };
+
+  const addReview = async (reviewData) => {
+    const existing = reviews.find(r => r.productId === reviewData.productId && r.userId === currentUser.id);
+    if (existing) {
+      return { success: false, message: 'You have already reviewed this product.' };
+    }
+
+    const newReview = {
+      id: `rev-${Date.now()}`,
+      product_id: reviewData.productId,
+      order_id: reviewData.orderId,
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      user_email: currentUser.email,
+      rating: reviewData.rating,
+      comment: reviewData.comment,
+      date: new Date().toISOString().split('T')[0],
+    };
+    await supabase.from('reviews').insert(newReview);
+    setReviews((prev) => [{...newReview, productId: newReview.product_id, orderId: newReview.order_id, userName: newReview.user_name}, ...prev]);
+    
+    // Remove auto-archive so it stays in order history
+    // if (reviewData.orderId) {
+    //   clearDeliveredOrderTracking(reviewData.orderId);
+    // }
+    return { success: true };
+  };
+
+  const markNotificationRead = async (notificationId) => {
+    await supabase.from('notifications').update({ read: true }).eq('id', notificationId);
+    setNotifications((prev) => prev.map((n) => n.id === notificationId ? { ...n, read: true } : n));
+  };
+
+  const clearAllNotifications = async (userId, userRole) => {
+    if (userRole === 'Admin') {
+      await supabase.from('notifications').delete().eq('target_role', 'Admin');
+      setNotifications((prev) => prev.filter(n => n.targetRole !== 'Admin'));
+    } else {
+      await supabase.from('notifications').delete().eq('user_id', userId);
+      setNotifications((prev) => prev.filter(n => n.userId !== userId));
+    }
   };
 
   return (
     <AppContext.Provider
       value={{
-        currentUser,
-        login,
-        logout,
-        registerUser,
-        activeRole,
-        setActiveRole,
-        activeVendorId,
-        setActiveVendorId,
-        isLoginModalOpen,
-        setIsLoginModalOpen,
-        customAlert,
-        showAlert,
-        closeAlert,
-        coupons,
-        collectedVouchers,
-        collectVoucher,
-        appliedCoupon,
-        applyCoupon,
-        removeCoupon,
-        addPublicVoucher,
-        addVendorVoucher,
-        deleteVoucher,
-        products,
-        vendors,
-        categories,
-        orders,
-        cart,
-        reviews,
-        notifications,
-        markNotificationsAsRead,
-        clearNotification,
-        clearAllNotifications,
-        payoutRequests,
-        requestVendorPayout,
-        processVendorPayout,
-        requestDeliveryPayout,
-        processDeliveryPayout,
-        addToCart,
-        updateCartQuantity,
-        removeFromCart,
-        clearCart,
-        placeOrder,
-        verifyMFSOrder,
-        processCustomerRefund,
-        vendorProcessOrder,
-        driverProcessDelivery,
-        retryPayment,
-        approveVendor,
-        suspendVendor,
-        registerVendor,
-        updateVendorProfile,
-        deliveryAgents,
-        registerDeliveryAgent,
-        approveDeliveryAgent,
-        suspendDeliveryAgent,
-        addProduct,
-        deleteProduct,
-        archiveOrder,
-        addReview,
+        currentUser, activeRole, setActiveRole, activeVendorId, login, logout, registerUser, registerVendor,
+        updateVendorProfile, approveVendor, suspendVendor, registerDeliveryAgent,
+        approveDeliveryAgent, suspendDeliveryAgent, products, categories, addProduct, updateProduct,
+        deleteProduct, orders, vendors, deliveryAgents, payoutRequests, requestVendorPayout,
+        processVendorPayout, requestDeliveryPayout, processDeliveryPayout, placeOrder,
+        updateOrderStatus, cancelOrder, vendorProcessOrder, assignDeliveryRider, markOrderDelivered, driverProcessDelivery,
+        verifyAndAcceptPayment, verifyMFSOrder, processRefund, processCustomerRefund, clearDeliveredOrderTracking,
+        cart, addToCart, updateCartQuantity, removeFromCart, clearCart,
+        reviews, addReview, notifications, markNotificationRead, clearAllNotifications,
+        coupons, collectedVouchers, appliedCoupon, collectVoucher, applyCoupon,
+        removeCoupon, addPublicVoucher, deleteVoucher, isLoginModalOpen, setIsLoginModalOpen,
+        customAlert, showAlert, closeAlert, adminAccounts, userAccounts
       }}
     >
       {children}

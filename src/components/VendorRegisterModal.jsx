@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { X, Store, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 
 export const VendorRegisterModal = ({ isOpen, onClose }) => {
-  const { registerVendor } = useApp();
+  const { registerUser } = useApp();
 
   const [name, setName] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -19,16 +19,17 @@ export const VendorRegisterModal = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name || !ownerName || !email || !phone || !password) return;
 
-    registerVendor({
-      name,
-      ownerName,
-      email,
+    await registerUser({
+      name: ownerName,
       phone,
+      email,
       password,
+      isVendor: true,
+      storeName: name,
       address,
       category,
       tradeLicense,

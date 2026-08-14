@@ -27,6 +27,7 @@ export const CustomerView = ({
   onOpenCart,
   selectedCategory: externalCategory,
   setSelectedCategory: externalSetCategory,
+  onBuyNow,
 }) => {
   const { products, categories, orders, currentUser, addToCart, vendors, retryPayment, reviews, archiveOrder, showAlert } = useApp();
 
@@ -39,6 +40,7 @@ export const CustomerView = ({
   const [selectedVendorProfile, setSelectedVendorProfile] = useState(null);
 
   const [activeTab, setActiveTab] = useState('browse');
+  const [orderFilterTab, setOrderFilterTab] = useState('all');
   const [reviewProduct, setReviewProduct] = useState(null);
 
   // Retry Payment State
@@ -61,15 +63,49 @@ export const CustomerView = ({
     return () => clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const handleOpenOrders = (e) => {
+      setActiveTab('tracking');
+      setOrderFilterTab(e.detail.tab);
+    };
+    
+    const handleGoHome = () => {
+      setActiveTab('browse');
+      setSelectedCategory('all');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addEventListener('open-customer-orders', handleOpenOrders);
+    window.addEventListener('go-home', handleGoHome);
+    
+    return () => {
+      window.removeEventListener('open-customer-orders', handleOpenOrders);
+      window.removeEventListener('go-home', handleGoHome);
+    };
+  }, [setSelectedCategory]);
+
   const [viewedRefundOrderIds, setViewedRefundOrderIds] = useState([]);
 
   // Filter Active Order Tracking (Exclude archived/cleared tracking orders)
   const customerOrders = orders.filter((o) => {
     if (o.isArchived) return false;
-    if (o.customerId && currentUser.id && o.customerId === currentUser.id) return true;
-    if (o.customerEmail && currentUser.email && o.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
-    if (o.customerPhone && currentUser.phone && o.customerPhone === currentUser.phone) return true;
+    if (o.customerId && currentUser?.id && o.customerId === currentUser.id) return true;
+    if (o.customerEmail && currentUser?.email && o.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
+    if (o.customerPhone && currentUser?.phone && o.customerPhone === currentUser.phone) return true;
     return false;
+  });
+
+  const filteredCustomerOrders = customerOrders.filter((o) => {
+    if (orderFilterTab === 'all') return true;
+    if (orderFilterTab === 'to_pay') return o.paymentStatus === 'Pending' || o.paymentStatus === 'Pending Verification' || o.paymentStatus === 'Failed';
+    if (orderFilterTab === 'to_ship') return o.status === 'Confirmed' || o.status === 'Processing' || o.status === 'Ready for Courier';
+    if (orderFilterTab === 'to_receive') return o.status === 'Shipped' || o.status === 'Out for Delivery';
+    if (orderFilterTab === 'to_review') {
+      if (o.status !== 'Delivered') return false;
+      const hasUnreviewed = o.items.some(item => !reviews.find(r => r.orderId === o.id && r.productId === item.id));
+      return hasUnreviewed;
+    }
+    return true;
   });
 
   // Auto-archive refunded orders after customer views tracking 1 time
@@ -94,21 +130,24 @@ export const CustomerView = ({
 
   // Exclude products belonging to Suspended Vendors
   const activeProducts = products.filter((p) => {
+    if (!p) return false;
     const v = vendors.find(
-      (vendor) => vendor.id === p.vendorId || vendor.name.toLowerCase() === (p.vendorName || '').toLowerCase()
+      (vendor) => vendor && (vendor.id === p.vendorId || (vendor.name && String(vendor.name).toLowerCase() === String(p.vendorName || '').toLowerCase()))
     );
     if (v && v.status === 'Suspended') return false;
     return true;
   });
 
   // Product Filtering
+  const lowerSearchQuery = searchQuery ? String(searchQuery).trim().toLowerCase() : '';
   const filteredProducts = activeProducts.filter((p) => {
+    if (!p) return false;
     const matchesCategory = selectedCategory === 'all' || p.category === selectedCategory;
     const matchesSearch =
-      !searchQuery ||
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.brand.toLowerCase().includes(searchQuery.toLowerCase());
+      !lowerSearchQuery ||
+      (p.title && String(p.title).toLowerCase().includes(lowerSearchQuery)) ||
+      (p.vendorName && String(p.vendorName).toLowerCase().includes(lowerSearchQuery)) ||
+      (p.brand && String(p.brand).toLowerCase().includes(lowerSearchQuery));
     return matchesCategory && matchesSearch;
   });
 
@@ -333,10 +372,10 @@ export const CustomerView = ({
 
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginTop: '0.4rem' }}>
                       <span style={{ fontWeight: 800, color: 'var(--accent-blue)', fontSize: '1.05rem' }}>
-                        BDT {item.price.toLocaleString()}
+                        BDT {Number(item.price || 0).toLocaleString()}
                       </span>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-dim)', textDecoration: 'line-through' }}>
-                        BDT {item.originalPrice.toLocaleString()}
+                        BDT {Number(item.originalPrice || 0).toLocaleString()}
                       </span>
                     </div>
 
@@ -525,9 +564,9 @@ export const CustomerView = ({
 
                     <div className="product-price-row">
                       <div>
-                        <span className="price-current">BDT {product.price.toLocaleString()}</span>
+                        <span className="price-current">BDT {Number(product.price || 0).toLocaleString()}</span>
                         {product.originalPrice > product.price && (
-                          <span className="price-original">BDT {product.originalPrice.toLocaleString()}</span>
+                          <span className="price-original">BDT {Number(product.originalPrice || 0).toLocaleString()}</span>
                         )}
                       </div>
 
@@ -548,11 +587,19 @@ export const CustomerView = ({
       ) : (
         /* Customer Orders List & Activity Tracker */
         <div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1.25rem' }}>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem' }}>
             My Orders & Real-Time Shipment Progression
           </h2>
+          
+          <div className="tab-bar" style={{ marginBottom: '1.5rem', justifyContent: 'flex-start', overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: '0.5rem', whiteSpace: 'nowrap' }}>
+            <button className={`tab-btn ${orderFilterTab === 'all' ? 'active' : ''}`} onClick={() => setOrderFilterTab('all')}>All Orders</button>
+            <button className={`tab-btn ${orderFilterTab === 'to_pay' ? 'active' : ''}`} onClick={() => setOrderFilterTab('to_pay')}>To Pay</button>
+            <button className={`tab-btn ${orderFilterTab === 'to_ship' ? 'active' : ''}`} onClick={() => setOrderFilterTab('to_ship')}>To Ship</button>
+            <button className={`tab-btn ${orderFilterTab === 'to_receive' ? 'active' : ''}`} onClick={() => setOrderFilterTab('to_receive')}>To Receive</button>
+            <button className={`tab-btn ${orderFilterTab === 'to_review' ? 'active' : ''}`} onClick={() => setOrderFilterTab('to_review')}>To Review</button>
+          </div>
 
-          {customerOrders.length === 0 ? (
+          {filteredCustomerOrders.length === 0 ? (
             <div
               style={{
                 textAlign: 'center',
@@ -563,14 +610,14 @@ export const CustomerView = ({
               }}
             >
               <Truck size={48} style={{ color: 'var(--text-dim)', marginBottom: '1rem' }} />
-              <h3 style={{ color: 'var(--text-main)' }}>No orders placed yet</h3>
+              <h3 style={{ color: 'var(--text-main)' }}>No orders in this category</h3>
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                Start shopping on Kinbo to view your live orders here!
+                Check back later or browse other tabs!
               </p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {customerOrders.map((order) => (
+              {filteredCustomerOrders.map((order) => (
                 <div
                   key={order.id}
                   style={{
@@ -607,7 +654,7 @@ export const CustomerView = ({
                         {order.status}
                       </span>
                       <span style={{ fontWeight: 800, fontSize: '1.15rem', color: 'var(--accent-blue)' }}>
-                        BDT {order.total.toLocaleString()}
+                        BDT {Number(order.total || 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -637,7 +684,7 @@ export const CustomerView = ({
                             {item.title}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            Qty: {item.quantity} × BDT {item.price.toLocaleString()}
+                            Qty: {item.quantity} × BDT {Number(item.price || 0).toLocaleString()}
                           </div>
                         </div>
 
@@ -732,7 +779,7 @@ export const CustomerView = ({
                               💸 Refund Released & Status Done!
                             </div>
                             <div style={{ fontSize: '0.78rem', marginTop: 2, opacity: 0.9 }}>
-                              BDT {order.total.toLocaleString()} has been returned to your {order.paymentMethod} account (Ref TrxID: {order.refundRefTrxId || 'REF-RELEASED'}).
+                              BDT {Number(order.total || 0).toLocaleString()} has been returned to your {order.paymentMethod} account (Ref TrxID: {order.refundRefTrxId || 'REF-RELEASED'}).
                             </div>
                           </div>
 
@@ -749,7 +796,7 @@ export const CustomerView = ({
                         </>
                       ) : (
                         <div>
-                          ⏳ <strong>Refund Pending Admin Approval:</strong> Seller cancelled order. BDT {order.total.toLocaleString()} refund is being verified by Admin and will be transferred to your {order.paymentMethod} account shortly.
+                          ⏳ <strong>Refund Pending Admin Approval:</strong> Seller cancelled order. BDT {Number(order.total || 0).toLocaleString()} refund is being verified by Admin and will be transferred to your {order.paymentMethod} account shortly.
                         </div>
                       )}
                     </div>
@@ -903,6 +950,10 @@ export const CustomerView = ({
           product={selectedProduct}
           onClose={() => setSelectedProduct(null)}
           onOpenCart={onOpenCart}
+          onBuyNow={() => {
+            setSelectedProduct(null);
+            if (onBuyNow) onBuyNow();
+          }}
           onOpenVendorProfile={(vendorObj) => setSelectedVendorProfile(vendorObj)}
         />
       )}

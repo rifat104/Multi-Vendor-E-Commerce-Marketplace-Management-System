@@ -13,6 +13,8 @@ import {
   HelpCircle,
   Sparkles,
   Lock,
+  Clock,
+  Package
 } from 'lucide-react';
 
 export const SideMenuDrawer = ({
@@ -132,6 +134,48 @@ export const SideMenuDrawer = ({
 
         {/* Sliding Menu Links */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+          {currentUser.isAuthenticated && activeRole !== 'delivery' && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
+                My Orders
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', textAlign: 'center' }}>
+                <button
+                  className="icon-btn"
+                  onClick={() => { setActiveRole('customer'); onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent('open-customer-orders', { detail: { tab: 'to_pay' } })), 50); }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', padding: '0.5rem', height: 'auto', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <Clock size={20} style={{ color: 'var(--accent-blue)' }} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-main)' }}>To Pay</span>
+                </button>
+                <button
+                  className="icon-btn"
+                  onClick={() => { setActiveRole('customer'); onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent('open-customer-orders', { detail: { tab: 'to_ship' } })), 50); }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', padding: '0.5rem', height: 'auto', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <Package size={20} style={{ color: 'var(--accent-blue)' }} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-main)' }}>To Ship</span>
+                </button>
+                <button
+                  className="icon-btn"
+                  onClick={() => { setActiveRole('customer'); onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent('open-customer-orders', { detail: { tab: 'to_receive' } })), 50); }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', padding: '0.5rem', height: 'auto', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <Truck size={20} style={{ color: 'var(--accent-blue)' }} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-main)' }}>To Receive</span>
+                </button>
+                <button
+                  className="icon-btn"
+                  onClick={() => { setActiveRole('customer'); onClose(); setTimeout(() => window.dispatchEvent(new CustomEvent('open-customer-orders', { detail: { tab: 'to_review' } })), 50); }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.3rem', padding: '0.5rem', height: 'auto', borderRadius: 'var(--radius-sm)' }}
+                >
+                  <Tag size={20} style={{ color: 'var(--accent-blue)' }} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-main)' }}>To Review</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Section 1: Dashboard Navigation */}
           <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.5px', marginBottom: '0.5rem', textTransform: 'uppercase' }}>

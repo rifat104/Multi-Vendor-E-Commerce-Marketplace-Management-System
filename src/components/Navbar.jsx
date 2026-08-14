@@ -18,6 +18,7 @@ export const Navbar = ({
     currentUser,
     collectedVouchers,
     products,
+    vendors,
     markNotificationsAsRead,
     clearNotification,
     clearAllNotifications,
@@ -39,37 +40,36 @@ export const Navbar = ({
         if (currentUser.role === 'admin' || activeRole === 'admin') {
           return n.targetRole === 'Admin';
         }
+        
+        // Always show notifications specifically targeted to this user or their linked vendor store
+        if (n.targetUserId === currentUser.id || n.targetUserId === currentUser.vendorId) return true;
+
         if (currentUser.role === 'vendor' || activeRole === 'vendor') {
-          return (
-            n.targetVendorId === currentUser.vendorId ||
-            (n.targetRole === 'Vendor' && (!n.targetVendorId || n.targetVendorId === currentUser.id))
-          );
+          return n.targetRole === 'Vendor' && !n.targetUserId;
         }
-        // Customer or Delivery Rider
-        return (
-          n.targetUserId === currentUser.id ||
-          (n.targetUserEmail && currentUser.email && n.targetUserEmail.toLowerCase() === currentUser.email.toLowerCase()) ||
-          (n.targetRole === 'Customer' && (!n.targetUserId || n.targetUserId === currentUser.id)) ||
-          (n.targetRole === 'Delivery' && (n.targetUserId === currentUser.id || n.targetUserEmail === currentUser.email))
-        );
+        
+        // Customer or Delivery Rider global notifications
+        return (n.targetRole === 'All' && !n.targetUserId) || (n.targetRole === 'Customer' && !n.targetUserId);
       });
 
   const unreadNotifs = userNotifications.filter((n) => !n.read);
 
+  const lowerQuery = searchQuery ? String(searchQuery).trim().toLowerCase() : '';
   // Live Auto-Complete Product Matching (Exclude products from Suspended Vendors)
-  const matchingSuggestions = searchQuery.trim()
+  const matchingSuggestions = lowerQuery
     ? products
         .filter((p) => {
+          if (!p) return false;
           const v = vendors.find(
-            (vendor) => vendor.id === p.vendorId || vendor.name.toLowerCase() === (p.vendorName || '').toLowerCase()
+            (vendor) => vendor && (vendor.id === p.vendorId || (vendor.name && String(vendor.name).toLowerCase() === String(p.vendorName || '').toLowerCase()))
           );
           if (v && v.status === 'Suspended') return false;
 
           return (
-            p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.brand.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.vendorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.category.toLowerCase().includes(searchQuery.toLowerCase())
+            (p.title && String(p.title).toLowerCase().includes(lowerQuery)) ||
+            (p.brand && String(p.brand).toLowerCase().includes(lowerQuery)) ||
+            (p.vendorName && String(p.vendorName).toLowerCase().includes(lowerQuery)) ||
+            (p.category && String(p.category).toLowerCase().includes(lowerQuery))
           );
         })
         .slice(0, 6)
@@ -97,7 +97,15 @@ export const Navbar = ({
   return (
     <header className="navbar">
       {/* Brand Logo */}
-      <div className="nav-brand">
+      <div 
+        className="nav-brand" 
+        onClick={() => {
+          if (currentUser?.role === 'delivery' || activeRole === 'delivery') return;
+          setActiveRole('customer');
+          setTimeout(() => window.dispatchEvent(new CustomEvent('go-home')), 50);
+        }}
+        style={{ cursor: 'pointer' }}
+      >
         <img
           src="/kinbo-logo.png"
           alt="Kinbo E-Commerce Marketplace"
@@ -172,7 +180,7 @@ export const Navbar = ({
                       alignItems: 'center',
                     }}
                   >
-                    <span>PRODUCT SUGGESTIONS FOR "{searchQuery.toUpperCase()}"</span>
+                    <span>PRODUCT SUGGESTIONS FOR "{String(searchQuery || '').toUpperCase()}"</span>
                     <span>{matchingSuggestions.length} Matches</span>
                   </div>
 
@@ -227,7 +235,7 @@ export const Navbar = ({
                       </div>
 
                       <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-blue)', whiteSpace: 'nowrap' }}>
-                        BDT {item.price.toLocaleString()}
+                        BDT {Number(item.price || 0).toLocaleString()}
                       </div>
                     </div>
                   ))}
@@ -314,7 +322,10 @@ export const Navbar = ({
 
                 {isLoggedIn && userNotifications.length > 0 && (
                   <button
-                    onClick={clearAllNotifications}
+                    onClick={() => {
+                      const role = currentUser.role === 'admin' || activeRole === 'admin' ? 'Admin' : activeRole;
+                      clearAllNotifications(currentUser.id, role);
+                    }}
                     style={{
                       fontSize: '0.75rem',
                       color: 'var(--accent-rose)',

@@ -39,6 +39,7 @@ export const VendorView = () => {
     vendorProcessOrder,
     updateVendorProfile,
     showAlert,
+    setActiveRole,
   } = useApp();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -57,12 +58,10 @@ export const VendorView = () => {
   const [payoutAmount, setPayoutAmount] = useState('500');
   const [payoutBankDetails, setPayoutBankDetails] = useState('');
   const [payoutMessage, setPayoutMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Match current vendor store by activeVendorId OR by logged in user's email
-  const vendor =
-    vendors.find((v) => v.id === activeVendorId || (currentUser.email && v.email.toLowerCase() === currentUser.email.toLowerCase())) ||
-    vendors[0];
-
+  // Match current vendor store by activeVendorId
+  const vendor = vendors.find((v) => v.id === activeVendorId) || vendors[0];
   // Edit Profile Form State
   const [storeName, setStoreName] = useState(vendor.name);
   const [ownerName, setOwnerName] = useState(vendor.ownerName);
@@ -107,7 +106,11 @@ export const VendorView = () => {
     .filter((p) => p.status === 'Approved')
     .reduce((sum, p) => sum + p.amount, 0);
 
-  const availableBalance = Math.max(0, netEarnings - approvedPayoutsSum);
+  const pendingWithdrawal = vendorPayouts
+    .filter((p) => p.status === 'Pending Admin Approval' || p.status === 'Pending' || p.status === 'Pending Approval')
+    .reduce((sum, p) => sum + p.amount, 0);
+
+  const availableBalance = Math.max(0, netEarnings - approvedPayoutsSum - pendingWithdrawal);
 
   const handleDownloadReport = () => {
     showAlert(
@@ -176,8 +179,9 @@ export const VendorView = () => {
     }
   };
 
-  const handleApplyPayoutSubmit = (e) => {
+  const handleApplyPayoutSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const amountNum = Number(payoutAmount);
 
     if (amountNum < 500) {
@@ -189,7 +193,10 @@ export const VendorView = () => {
       return;
     }
 
-    const res = requestVendorPayout(vendor.id, vendor.name, amountNum, payoutBankDetails || vendor.bankDetails);
+    setIsSubmitting(true);
+    const res = await requestVendorPayout(vendor.id, vendor.name, amountNum, payoutBankDetails || vendor.bankDetails);
+    setIsSubmitting(false);
+    
     if (res.success) {
       showAlert('Payout Requested', res.message, 'success');
       setIsPayoutModalOpen(false);
@@ -241,6 +248,9 @@ export const VendorView = () => {
           </button>
           <button className="btn btn-outline" style={{ fontSize: '0.8rem' }} onClick={() => setIsEditProfileOpen(true)}>
             <Edit3 size={16} /> Edit Profile & Logo
+          </button>
+          <button className="btn btn-primary" style={{ fontSize: '0.8rem', background: 'var(--accent-blue)', borderColor: 'var(--accent-blue)' }} onClick={() => setActiveRole('customer')}>
+            <ShoppingBag size={16} /> View Marketplace
           </button>
           <button className="btn btn-outline" style={{ fontSize: '0.8rem' }} onClick={handleDownloadReport}>
             <FileSpreadsheet size={16} /> Sales Report
@@ -792,12 +802,12 @@ export const VendorView = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setIsPayoutModalOpen(false)}>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <button type="button" className="btn btn-outline" onClick={() => setIsPayoutModalOpen(false)} disabled={isSubmitting}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Submit Payout Request
+                <button type="submit" className="btn btn-success" style={{ flex: 1 }} disabled={isSubmitting}>
+                  {isSubmitting ? 'Processing...' : 'Submit Withdraw Request'}
                 </button>
               </div>
             </form>

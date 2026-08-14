@@ -44,7 +44,9 @@ export const AdminView = () => {
     deliveryAgents,
     approveDeliveryAgent,
     suspendDeliveryAgent,
+    updateOrderPaymentStatus,
     showAlert,
+    setActiveRole,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState('mfs');
@@ -76,6 +78,7 @@ export const AdminView = () => {
   const [vAmount, setVAmount] = useState('10');
   const [vMinSpend, setVMinSpend] = useState('1000');
   const [vDescription, setVDescription] = useState('');
+  const [isSubmittingVoucher, setIsSubmittingVoucher] = useState(false);
 
   const mfsOrders = orders.filter((o) => o.status === 'Pending Verification' || o.paymentStatus === 'Pending Verification');
   const pendingVendors = vendors.filter((v) => v.status === 'Pending');
@@ -103,11 +106,12 @@ export const AdminView = () => {
     setNewAdminName('');
   };
 
-  const handleCreatePublicVoucher = (e) => {
+  const handleCreatePublicVoucher = async (e) => {
     e.preventDefault();
-    if (!vCode || !vAmount) return;
+    if (!vCode || !vAmount || isSubmittingVoucher) return;
 
-    const res = addPublicVoucher({
+    setIsSubmittingVoucher(true);
+    const res = await addPublicVoucher({
       code: vCode,
       discountType: vDiscountType,
       amount: vAmount,
@@ -123,6 +127,7 @@ export const AdminView = () => {
       setVMinSpend('1000');
       setVDescription('');
     }
+    setIsSubmittingVoucher(false);
   };
 
   const handleConfirmPayoutRelease = (e) => {
@@ -200,12 +205,15 @@ export const AdminView = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.65rem' }}>
+        <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
           <button className="btn btn-outline" style={{ fontSize: '0.8rem' }} onClick={() => setIsAddVoucherOpen(true)}>
             <Tag size={16} style={{ color: 'var(--accent-blue)' }} /> + Add Public Voucher
           </button>
-          <button className="btn btn-primary" style={{ fontSize: '0.8rem' }} onClick={() => setIsAddAdminOpen(true)}>
+          <button className="btn btn-outline" style={{ fontSize: '0.8rem' }} onClick={() => setIsAddAdminOpen(true)}>
             <UserPlus size={16} /> Add New Admin
+          </button>
+          <button className="btn btn-primary" style={{ fontSize: '0.8rem', background: 'var(--accent-blue)', borderColor: 'var(--accent-blue)' }} onClick={() => setActiveRole('customer')}>
+            <ShoppingBag size={16} /> View Marketplace
           </button>
         </div>
       </div>
@@ -411,7 +419,7 @@ export const AdminView = () => {
                               </span>
                             </td>
                             <td>
-                              {p.status === 'Pending Admin Approval' ? (
+                              {p.status === 'Pending Admin Approval' || p.status === 'Pending' || p.status === 'Pending Approval' ? (
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                   <button
                                     className="btn btn-success"
@@ -501,7 +509,7 @@ export const AdminView = () => {
                               </span>
                             </td>
                             <td>
-                              {p.status === 'Pending Admin Approval' || p.status === 'Pending' ? (
+                              {p.status === 'Pending Admin Approval' || p.status === 'Pending' || p.status === 'Pending Approval' ? (
                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                   <button
                                     className="btn btn-success"
@@ -1315,11 +1323,11 @@ export const AdminView = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.25rem' }}>
-                <button type="button" className="btn btn-outline" onClick={() => setIsAddVoucherOpen(false)}>
+                <button type="button" className="btn btn-outline" onClick={() => setIsAddVoucherOpen(false)} disabled={isSubmittingVoucher}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary">
-                  Publish Public Voucher
+                <button type="submit" className="btn btn-primary" disabled={isSubmittingVoucher}>
+                  {isSubmittingVoucher ? 'Publishing...' : 'Publish Public Voucher'}
                 </button>
               </div>
             </form>

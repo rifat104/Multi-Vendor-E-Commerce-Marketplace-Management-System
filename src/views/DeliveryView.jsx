@@ -16,10 +16,11 @@ import {
   LogOut,
   Layers,
   CheckSquare,
+  ShoppingBag,
 } from 'lucide-react';
 
 export const DeliveryView = () => {
-  const { orders, currentUser, deliveryAgents, driverProcessDelivery, payoutRequests, requestDeliveryPayout, logout, showAlert } = useApp();
+  const { orders, currentUser, deliveryAgents, driverProcessDelivery, payoutRequests, requestDeliveryPayout, logout, showAlert, setActiveRole } = useApp();
   const [filterTab, setFilterTab] = useState('all');
 
   // Withdraw Modal State
@@ -28,6 +29,7 @@ export const DeliveryView = () => {
   const [payoutMethod, setPayoutMethod] = useState('bKash');
   const [accountDetails, setAccountDetails] = useState('');
   const [withdrawNote, setWithdrawNote] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Match logged in delivery rider account
   const currentRider =
@@ -54,13 +56,13 @@ export const DeliveryView = () => {
   const allShipmentOrders = orders.filter((o) => o.status !== 'Cancelled');
 
   const filteredOrders = allShipmentOrders.filter((o) => {
-    if (filterTab === 'pickup') return o.status === 'Confirmed' || o.status === 'Processing';
+    if (filterTab === 'pickup') return o.status === 'Ready for Courier';
     if (filterTab === 'transit') return o.status === 'Shipped';
     if (filterTab === 'delivered') return o.status === 'Delivered';
     return true; // 'all'
   });
 
-  const activeDeliveriesCount = allShipmentOrders.filter((o) => o.status === 'Shipped' || o.status === 'Processing' || o.status === 'Confirmed').length;
+  const activeDeliveriesCount = allShipmentOrders.filter((o) => o.status === 'Shipped' || o.status === 'Ready for Courier').length;
   const completedCount = allShipmentOrders.filter((o) => o.status === 'Delivered').length;
 
   // Driver Payout & Commission Calculations
@@ -76,13 +78,14 @@ export const DeliveryView = () => {
     .reduce((sum, p) => sum + p.amount, 0);
 
   const pendingWithdrawal = riderPayouts
-    .filter((p) => p.status === 'Pending Admin Approval' || p.status === 'Pending')
+    .filter((p) => p.status === 'Pending Admin Approval' || p.status === 'Pending' || p.status === 'Pending Approval')
     .reduce((sum, p) => sum + p.amount, 0);
 
   const availableBalance = Math.max(0, totalGrossCommission - approvedWithdrawn - pendingWithdrawal);
 
-  const handleWithdrawSubmit = (e) => {
+  const handleWithdrawSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     const amountNum = Number(withdrawAmount);
 
     if (amountNum < 100) {
@@ -100,7 +103,8 @@ export const DeliveryView = () => {
       return;
     }
 
-    const res = requestDeliveryPayout(
+    setIsSubmitting(true);
+    const res = await requestDeliveryPayout(
       currentRiderId,
       currentRider.name,
       currentRiderEmail,
@@ -110,6 +114,7 @@ export const DeliveryView = () => {
       accountDetails.trim(),
       withdrawNote.trim()
     );
+    setIsSubmitting(false);
 
     if (res.success) {
       showAlert('Payout Requested', `✓ ${res.message}`, 'success');
@@ -157,11 +162,11 @@ export const DeliveryView = () => {
           </div>
 
           <button
-            onClick={logout}
+            onClick={() => setActiveRole('customer')}
             className="btn"
-            style={{ background: 'rgba(255,255,255,0.2)', color: 'white', border: '1px solid rgba(255,255,255,0.4)', fontSize: '0.82rem', fontWeight: 700 }}
+            style={{ background: 'white', color: 'var(--accent-blue)', border: 'none', fontSize: '0.85rem', fontWeight: 800 }}
           >
-            <LogOut size={15} /> Log Out to Browse Customer Store
+            <ShoppingBag size={16} style={{ color: 'var(--accent-blue)' }} /> View Customer Marketplace
           </button>
         </div>
       </div>
@@ -312,12 +317,12 @@ export const DeliveryView = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
-                <button type="submit" className="btn btn-success" style={{ flex: 1, padding: '0.75rem', fontWeight: 800 }}>
-                  Submit Withdrawal Request
-                </button>
-                <button type="button" className="btn btn-outline" onClick={() => setIsWithdrawModalOpen(false)}>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-outline" style={{ flex: 1 }} onClick={() => setIsWithdrawModalOpen(false)} disabled={isSubmitting}>
                   Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={isSubmitting}>
+                  {isSubmitting ? 'Processing...' : 'Submit Request'}
                 </button>
               </div>
             </form>
@@ -344,7 +349,7 @@ export const DeliveryView = () => {
             style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
             onClick={() => setFilterTab('pickup')}
           >
-            Ready for Pickup ({allShipmentOrders.filter((o) => o.status === 'Confirmed' || o.status === 'Processing').length})
+            Ready for Pickup ({allShipmentOrders.filter((o) => o.status === 'Ready for Courier').length})
           </button>
           <button
             className={`btn ${filterTab === 'transit' ? 'btn-primary' : 'btn-outline'}`}
@@ -459,7 +464,7 @@ export const DeliveryView = () => {
 
                 {/* Delivery Action Buttons */}
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  {(order.status === 'Confirmed' || order.status === 'Processing') && (
+                  {order.status === 'Ready for Courier' && (
                     <button
                       className="btn btn-primary"
                       style={{ width: '100%', fontSize: '0.82rem', padding: '0.55rem' }}
