@@ -90,8 +90,6 @@ export const CustomerView = ({
   const customerOrders = orders.filter((o) => {
     if (o.isArchived) return false;
     if (o.customerId && currentUser?.id && o.customerId === currentUser.id) return true;
-    if (o.customerEmail && currentUser?.email && o.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) return true;
-    if (o.customerPhone && currentUser?.phone && o.customerPhone === currentUser.phone) return true;
     return false;
   });
 

@@ -320,6 +320,8 @@ export const AppProvider = ({ children }) => {
   const logout = () => {
     setCurrentUser({ id: 'guest', name: 'Guest User', email: '', role: 'customer', isAuthenticated: false });
     setActiveRole('customer');
+    setCart([]);
+    localStorage.removeItem('kinbo_cart');
   };
 
   const registerUser = async (userData) => {
