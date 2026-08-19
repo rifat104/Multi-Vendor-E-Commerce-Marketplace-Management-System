@@ -194,12 +194,14 @@ export const CustomerView = ({
             <ShoppingBag size={18} /> Kinbo Mall Catalog ({filteredProducts.length})
           </button>
 
-          <button
-            className={`btn ${activeTab === 'orders' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setActiveTab('orders')}
-          >
-            <Truck size={18} /> Order Tracking ({customerOrders.length})
-          </button>
+          {currentUser.isAuthenticated && (
+            <button
+              className={`btn ${activeTab === 'orders' ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => setActiveTab('orders')}
+            >
+              <Truck size={18} /> Order Tracking ({customerOrders.length})
+            </button>
+          )}
         </div>
 
         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -330,7 +332,7 @@ export const CustomerView = ({
               </div>
 
               {/* Flash Sale Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+              <div className="responsive-product-grid">
                 {flashSaleProducts.map((item) => (
                   <div
                     key={item.id}
@@ -403,7 +405,7 @@ export const CustomerView = ({
                 </h3>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+              <div className="responsive-product-grid">
                 {approvedVendors.map((vendor) => (
                   <div
                     key={vendor.id}

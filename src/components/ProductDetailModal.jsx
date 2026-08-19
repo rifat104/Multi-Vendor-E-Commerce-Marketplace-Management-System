@@ -20,9 +20,11 @@ export const ProductDetailModal = ({ product, onClose, onOpenCart, onOpenVendorP
       (product.vendorName && currentUser?.ownerName && product.vendorName.toLowerCase() === currentUser.ownerName.toLowerCase()));
 
   const handleAddToCart = () => {
-    addToCart(product, quantity);
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+    const success = addToCart(product, quantity);
+    if (success) {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    }
   };
 
   return (
@@ -277,12 +279,14 @@ export const ProductDetailModal = ({ product, onClose, onOpenCart, onOpenVendorP
                 style={{ opacity: isOwnProduct ? 0.6 : 1, cursor: isOwnProduct ? 'not-allowed' : 'pointer' }}
                 onClick={() => {
                   if (isOwnProduct) return;
-                  addToCart(product, quantity, true);
-                  onClose();
-                  if (onBuyNow) {
-                    onBuyNow();
-                  } else {
-                    onOpenCart();
+                  const success = addToCart(product, quantity, true);
+                  if (success) {
+                    onClose();
+                    if (onBuyNow) {
+                      onBuyNow();
+                    } else {
+                      onOpenCart();
+                    }
                   }
                 }}
               >

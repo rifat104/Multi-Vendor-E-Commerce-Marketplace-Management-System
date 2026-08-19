@@ -219,14 +219,7 @@ export const AdminView = () => {
       </div>
 
       {/* Metric Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '2rem',
-        }}
-      >
+      <div className="responsive-metric-grid" style={{ marginBottom: '2rem' }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             <span>Pending Payout Requests</span>
@@ -721,7 +714,7 @@ export const AdminView = () => {
           </div>
 
           {/* Refund Overview Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div className="responsive-metric-grid" style={{ marginBottom: '1.5rem' }}>
             <div className="card" style={{ borderLeft: '4px solid #c2410c' }}>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>Pending Refund Requests</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#c2410c', marginTop: 4 }}>
@@ -1274,7 +1267,7 @@ export const AdminView = () => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="responsive-product-grid" style={{ gap: '0.75rem' }}>
                 <div className="form-group">
                   <label className="form-label">Discount Type</label>
                   <select

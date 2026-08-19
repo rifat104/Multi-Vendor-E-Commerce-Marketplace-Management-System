@@ -249,13 +249,15 @@ export const Navbar = ({
       <div className="nav-actions">
         {activeRole === 'customer' && (
           <>
-            <button
-              className="btn btn-outline"
-              onClick={onOpenVouchers}
-              style={{ fontSize: '0.82rem', padding: '0.45rem 0.85rem', borderColor: 'var(--border-color-light)', background: '#f0f9ff', color: 'var(--accent-blue)' }}
-            >
-              <Tag size={15} /> Vouchers ({collectedVouchers.length})
-            </button>
+            {currentUser.isAuthenticated && currentUser.id !== 'guest' && (
+              <button
+                className="btn btn-outline"
+                onClick={onOpenVouchers}
+                style={{ fontSize: '0.82rem', padding: '0.45rem 0.85rem', borderColor: 'var(--border-color-light)', background: '#f0f9ff', color: 'var(--accent-blue)' }}
+              >
+                <Tag size={15} /> Vouchers ({collectedVouchers.length})
+              </button>
+            )}
 
             {currentUser.role !== 'vendor' && (
               <button
@@ -267,10 +269,12 @@ export const Navbar = ({
               </button>
             )}
 
-            <button className="icon-btn" onClick={onOpenCart} title="Shopping Cart">
-              <ShoppingBag size={20} style={{ color: 'var(--text-main)' }} />
-              {totalCartCount > 0 && <span className="badge-count">{totalCartCount}</span>}
-            </button>
+            {currentUser.isAuthenticated && currentUser.id !== 'guest' && (
+              <button className="icon-btn" onClick={onOpenCart} title="Shopping Cart">
+                <ShoppingBag size={20} style={{ color: 'var(--text-main)' }} />
+                {totalCartCount > 0 && <span className="badge-count">{totalCartCount}</span>}
+              </button>
+            )}
           </>
         )}
 

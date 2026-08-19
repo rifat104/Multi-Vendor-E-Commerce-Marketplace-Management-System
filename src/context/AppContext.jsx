@@ -99,6 +99,107 @@ export const AppProvider = ({ children }) => {
     };
 
     fetchAllData();
+
+    // Supabase Real-time Subscriptions
+    const channel = supabase.channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const o = payload.new;
+          setOrders(prev => {
+            if (prev.find(item => item.id === o.id)) return prev;
+            return [{...o, customerId: o.customer_id, customerName: o.customer_name, customerEmail: o.customer_email, customerPhone: o.customer_phone, paymentMethod: o.payment_method, paymentStatus: o.payment_status, paymentTrxId: o.payment_trx_id, refundRefTrxId: o.refund_ref_trx_id, shippingAddress: o.shipping_address, deliveryFee: o.delivery_fee, deliveryRiderId: o.delivery_rider_id, deliveryRiderName: o.delivery_rider_name, isArchived: o.is_archived}, ...prev];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const o = payload.new;
+          setOrders(prev => prev.map(item => item.id === o.id ? {...o, customerId: o.customer_id, customerName: o.customer_name, customerEmail: o.customer_email, customerPhone: o.customer_phone, paymentMethod: o.payment_method, paymentStatus: o.payment_status, paymentTrxId: o.payment_trx_id, refundRefTrxId: o.refund_ref_trx_id, shippingAddress: o.shipping_address, deliveryFee: o.delivery_fee, deliveryRiderId: o.delivery_rider_id, deliveryRiderName: o.delivery_rider_name, isArchived: o.is_archived} : item));
+        } else if (payload.eventType === 'DELETE') {
+          setOrders(prev => prev.filter(item => item.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const n = payload.new;
+          setNotifications(prev => {
+            if (prev.find(item => item.id === n.id)) return prev;
+            return [{...n, targetRole: n.target_role, targetUserId: n.target_user_id, orderId: n.order_id}, ...prev];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const n = payload.new;
+          setNotifications(prev => prev.map(item => item.id === n.id ? {...n, targetRole: n.target_role, targetUserId: n.target_user_id, orderId: n.order_id} : item));
+        } else if (payload.eventType === 'DELETE') {
+          setNotifications(prev => prev.filter(item => item.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          const u = payload.new;
+          const updatedUser = {...u, vendorId: u.vendor_id, ownerName: u.owner_name};
+          setUserAccounts(prev => prev.map(item => item.id === updatedUser.id ? updatedUser : item));
+          
+          setCurrentUser(prevUser => {
+            if (prevUser.id === updatedUser.id && prevUser.role !== updatedUser.role) {
+              setActiveRole(updatedUser.role);
+              return {...prevUser, role: updatedUser.role, vendorId: updatedUser.vendorId};
+            }
+            return prevUser;
+          });
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          const v = payload.new;
+          setVendors(prev => prev.map(item => item.id === v.id ? {...v, ownerName: v.owner_name, bankDetails: v.bank_details, commissionRate: v.commission_rate} : item));
+        } else if (payload.eventType === 'INSERT') {
+          const v = payload.new;
+          setVendors(prev => {
+            if (prev.find(item => item.id === v.id)) return prev;
+            return [{...v, ownerName: v.owner_name, bankDetails: v.bank_details, commissionRate: v.commission_rate}, ...prev];
+          });
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const p = payload.new;
+          setProducts(prev => {
+            if (prev.find(item => item.id === p.id)) return prev;
+            return [{...p, originalPrice: p.original_price, reviewCount: p.review_count, vendorId: p.vendor_id, vendorName: p.vendor_name, onSale: p.on_sale, discountPercent: p.discount_percent}, ...prev];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const p = payload.new;
+          setProducts(prev => prev.map(item => item.id === p.id ? {...p, originalPrice: p.original_price, reviewCount: p.review_count, vendorId: p.vendor_id, vendorName: p.vendor_name, onSale: p.on_sale, discountPercent: p.discount_percent} : item));
+        } else if (payload.eventType === 'DELETE') {
+          setProducts(prev => prev.filter(item => item.id !== payload.old.id));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payout_requests' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          const p = payload.new;
+          setPayoutRequests(prev => {
+            if (prev.find(item => item.id === p.id)) return prev;
+            return [{...p, vendorId: p.vendor_id, vendorName: p.vendor_name, driverName: p.driver_name, bankDetails: p.bank_details}, ...prev];
+          });
+        } else if (payload.eventType === 'UPDATE') {
+          const p = payload.new;
+          setPayoutRequests(prev => prev.map(item => item.id === p.id ? {...p, vendorId: p.vendor_id, vendorName: p.vendor_name, driverName: p.driver_name, bankDetails: p.bank_details} : item));
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'delivery_agents' }, (payload) => {
+        if (payload.eventType === 'UPDATE') {
+          const a = payload.new;
+          setDeliveryAgents(prev => prev.map(item => item.id === a.id ? {...a, completedDeliveries: a.completed_deliveries} : item));
+        } else if (payload.eventType === 'INSERT') {
+          const a = payload.new;
+          setDeliveryAgents(prev => {
+            if (prev.find(item => item.id === a.id)) return prev;
+            return [{...a, completedDeliveries: a.completed_deliveries}, ...prev];
+          });
+        }
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Sync Cart
@@ -325,6 +426,7 @@ export const AppProvider = ({ children }) => {
 
   const approveVendor = async (vendorId) => {
     await supabase.from('vendors').update({ status: 'Approved' }).eq('id', vendorId);
+    await supabase.from('users').update({ role: 'vendor' }).eq('vendor_id', vendorId);
     setVendors((prev) => prev.map((v) => (v.id === vendorId ? { ...v, status: 'Approved' } : v)));
 
     const targetVendor = vendors.find((v) => v.id === vendorId);
@@ -501,6 +603,21 @@ export const AppProvider = ({ children }) => {
   };
 
   const addToCart = (product, quantity = 1, silent = false) => {
+    if (!currentUser.isAuthenticated || currentUser.id === 'guest') {
+      setIsLoginModalOpen(true);
+      if (!silent) {
+        showAlert('Login Required', 'Please login to add items to your cart.', 'info');
+      }
+      return false;
+    }
+
+    if (currentUser.vendorId && currentUser.vendorId === product.vendorId) {
+      if (!silent) {
+        showAlert('Action Denied', 'You cannot purchase your own products.', 'error');
+      }
+      return false;
+    }
+
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
@@ -511,6 +628,7 @@ export const AppProvider = ({ children }) => {
     if (!silent) {
       showAlert('Success', `${product.title} added to your cart!`, 'success');
     }
+    return true;
   };
 
   const updateCartQuantity = (productId, newQuantity) => {
@@ -574,6 +692,12 @@ export const AppProvider = ({ children }) => {
   };
 
   const placeOrder = async (orderData) => {
+    if (!currentUser.isAuthenticated || currentUser.id === 'guest') {
+      setIsLoginModalOpen(true);
+      showAlert('Login Required', 'Please login to place your order.', 'info');
+      return;
+    }
+
     const newOrder = {
       id: `ORD${Date.now()}`,
       customer_id: currentUser.id,
@@ -582,10 +706,11 @@ export const AppProvider = ({ children }) => {
       customer_phone: orderData.phone,
       items: cart,
       total: Number(orderData.total),
-      status: orderData.paymentMethod === 'Cash on Delivery' ? 'Processing' : 'Pending Verification',
-      date: new Date().toISOString(),
+      date: new Date().toLocaleString(),
       payment_method: orderData.paymentMethod,
-      payment_status: 'Pending',
+      payment_status: orderData.paymentMethod === 'Cash on Delivery' ? 'Pending' : 'Pending Verification',
+      status: orderData.paymentMethod === 'Cash on Delivery' ? 'Pending Vendor Approval' : 'Pending Verification',
+      payment_trx_id: orderData.trxId || null,
       shipping_address: orderData.address,
       delivery_fee: Number(orderData.shippingFee),
       is_archived: false
@@ -613,38 +738,69 @@ export const AppProvider = ({ children }) => {
     return newOrder.id;
   };
 
-  const notifyOrderStatusChange = async (order, newStatus, customMsg = '') => {
+  const notifyOrderStatusChange = async (order, newStatus, customMsg = '', targetRoles = ['customer', 'vendor']) => {
     if (!order) return;
     const msg = customMsg || `Order #${order.id} status is now: ${newStatus}`;
     
-    const custNotif = {
-      id: `n-${Date.now()}-c`,
-      user_id: order.customerId,
-      title: 'Order Status Update 📦',
-      message: msg,
-      target_role: 'customer',
-      date: new Date().toISOString(),
-      read: false,
-    };
-    
-    const vendorIds = [...new Set((order.items || []).map(item => item.vendorId))];
-    const vendorNotifs = vendorIds.filter(Boolean).map((vId, idx) => ({
-      id: `n-${Date.now()}-v${idx}`,
-      user_id: vId,
-      title: 'Order Status Update 📦',
-      message: msg,
-      target_role: 'vendor',
-      date: new Date().toISOString(),
-      read: false,
-    }));
-    
-    const allNotifs = [custNotif, ...vendorNotifs];
-    await supabase.from('notifications').insert(allNotifs);
-    setNotifications((prev) => [
-      {...custNotif, userId: custNotif.user_id, targetRole: custNotif.target_role},
-      ...vendorNotifs.map(n => ({...n, userId: n.user_id, targetRole: n.target_role})),
-      ...prev
-    ]);
+    let allNotifs = [];
+
+    if (targetRoles.includes('customer')) {
+      allNotifs.push({
+        id: `n-${Date.now()}-c`,
+        user_id: order.customerId,
+        title: 'Order Status Update 📦',
+        message: msg,
+        target_role: 'customer',
+        date: new Date().toISOString(),
+        read: false,
+      });
+    }
+
+    if (targetRoles.includes('vendor')) {
+      const vendorIds = [...new Set((order.items || []).map(item => item.vendorId))];
+      const vendorNotifs = vendorIds.filter(Boolean).map((vId, idx) => ({
+        id: `n-${Date.now()}-v${idx}`,
+        user_id: vId,
+        title: 'Order Status Update 📦',
+        message: msg,
+        target_role: 'vendor',
+        date: new Date().toISOString(),
+        read: false,
+      }));
+      allNotifs = [...allNotifs, ...vendorNotifs];
+    }
+
+    if (targetRoles.includes('admin')) {
+      allNotifs.push({
+        id: `n-${Date.now()}-a`,
+        user_id: 'admin', // Global admin target
+        title: 'Admin Action Required',
+        message: msg,
+        target_role: 'admin',
+        date: new Date().toISOString(),
+        read: false,
+      });
+    }
+
+    if (targetRoles.includes('delivery')) {
+      allNotifs.push({
+        id: `n-${Date.now()}-d`,
+        user_id: 'delivery', // Global delivery broadcast target
+        title: 'New Parcel Ready 🚚',
+        message: msg,
+        target_role: 'delivery',
+        date: new Date().toISOString(),
+        read: false,
+      });
+    }
+
+    if (allNotifs.length > 0) {
+      await supabase.from('notifications').insert(allNotifs);
+      setNotifications((prev) => [
+        ...allNotifs.map(n => ({...n, userId: n.user_id, targetRole: n.target_role})),
+        ...prev
+      ]);
+    }
   };
 
   const updateOrderStatus = async (orderId, newStatus) => {
@@ -680,16 +836,17 @@ export const AppProvider = ({ children }) => {
     if (newStatus === 'Delivered') {
       await supabase.from('orders').update({ status: 'Delivered', payment_status: 'Paid' }).eq('id', orderId);
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Delivered', paymentStatus: 'Paid' } : o));
-      notifyOrderStatusChange(order, 'Delivered', `Order #${orderId} has been successfully delivered!`);
+      notifyOrderStatusChange(order, 'Delivered', `Order #${orderId} has been successfully delivered and payouts credited!`, ['customer', 'vendor']);
     } else if (newStatus === 'Delivery Failed') {
       if (order && order.paymentMethod !== 'Cash on Delivery') {
         await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Pending Refund' }).eq('id', orderId);
         setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Pending Refund' } : o));
+        notifyOrderStatusChange(order, 'Delivery Failed', `Order #${orderId} prepaid delivery failed. Product returning to vendor. Refund required.`, ['customer', 'vendor', 'admin']);
       } else {
         await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Cancelled' }).eq('id', orderId);
         setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Cancelled' } : o));
+        notifyOrderStatusChange(order, 'Delivery Failed', `Order #${orderId} COD delivery failed. Product returning to vendor.`, ['customer', 'vendor']);
       }
-      notifyOrderStatusChange(order, 'Delivery Failed', `Order #${orderId} delivery attempt failed.`);
     } else {
       await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: newStatus } : o));
@@ -697,46 +854,48 @@ export const AppProvider = ({ children }) => {
     }
   };
 
-  const verifyAndAcceptPayment = async (orderId, adminNote = '') => {
-    const order = orders.find(o => o.id === orderId);
-    await supabase.from('orders').update({ payment_status: 'Paid', status: 'Processing' }).eq('id', orderId);
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Paid', status: 'Processing' } : o));
-    notifyOrderStatusChange(order, 'Processing', `Payment verified for Order #${orderId}. Vendor is now packing your order.`);
+  const verifyAndAcceptPayment = async (orderId) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    await supabase.from('orders').update({ payment_status: 'Paid', status: 'Pending Vendor Approval' }).eq('id', orderId);
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Paid', status: 'Pending Vendor Approval' } : o));
+    notifyOrderStatusChange(order, 'Processing', 'Payment verified successfully. Order forwarded to Vendor for packing.');
   };
 
-  const verifyMFSOrder = async (orderId, isVerified, adminNote = '') => {
-    const order = orders.find(o => o.id === orderId);
-    if (isVerified) {
-      await supabase.from('orders').update({ payment_status: 'Paid', status: 'Processing' }).eq('id', orderId);
-      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Paid', status: 'Processing' } : o));
-      showAlert('Payment Verified', `Order ${orderId} MFS payment confirmed!`, 'success');
-      notifyOrderStatusChange(order, 'Processing', `MFS Payment verified for Order #${orderId}. Vendor is processing.`);
+  const verifyMFSOrder = async (orderId, isValid, reason = '') => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    if (isValid) {
+      await supabase.from('orders').update({ payment_status: 'Paid', status: 'Pending Vendor Approval' }).eq('id', orderId);
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Paid', status: 'Pending Vendor Approval' } : o));
+      notifyOrderStatusChange(order, 'Processing', 'MFS Payment verified successfully. Order forwarded to Vendor for packing.');
     } else {
       await supabase.from('orders').update({ payment_status: 'Failed', status: 'Cancelled' }).eq('id', orderId);
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, paymentStatus: 'Failed', status: 'Cancelled' } : o));
-      showAlert('Payment Rejected', `Order ${orderId} MFS payment was rejected.`, 'error');
-      notifyOrderStatusChange(order, 'Cancelled', `MFS Payment rejected for Order #${orderId}.`);
+      notifyOrderStatusChange(order, 'Cancelled', `Payment Verification Failed: ${reason}`);
     }
   };
 
-  const vendorProcessOrder = async (orderId, action, vendorNote = '') => {
-    const order = orders.find(o => o.id === orderId);
+  const vendorProcessOrder = async (orderId, action, message) => {
+    const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
     if (action === 'accept') {
       await supabase.from('orders').update({ status: 'Ready for Courier' }).eq('id', orderId);
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Ready for Courier' } : o));
-      showAlert('Order Accepted', `Order ${orderId} is now Ready for Courier.`, 'success');
-      notifyOrderStatusChange(order, 'Ready for Courier', `Vendor accepted Order #${orderId} and is ready for pickup.`);
+      notifyOrderStatusChange(order, 'Ready for Courier', message || `Order #${orderId} has been packed and is ready for courier pickup.`, ['customer', 'vendor', 'delivery']);
     } else if (action === 'reject') {
-      if (order && order.paymentMethod !== 'Cash on Delivery') {
+      if (order.paymentStatus === 'Paid' || order.paymentMethod !== 'Cash on Delivery') {
         await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Pending Refund' }).eq('id', orderId);
         setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Pending Refund' } : o));
-        showAlert('Order Rejected', `Order cancelled. Refund request sent to Admin.`, 'info');
+        notifyOrderStatusChange(order, 'Cancelled by Vendor', message || `Vendor rejected prepaid order #${orderId}. Refund required.`, ['customer', 'vendor', 'admin']);
       } else {
-        await supabase.from('orders').update({ status: 'Cancelled', payment_status: 'Cancelled' }).eq('id', orderId);
-        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled', paymentStatus: 'Cancelled' } : o));
-        showAlert('Order Rejected', `COD Order cancelled.`, 'info');
+        await supabase.from('orders').update({ status: 'Cancelled by Vendor', payment_status: 'Cancelled' }).eq('id', orderId);
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status: 'Cancelled by Vendor', paymentStatus: 'Cancelled' } : o));
+        notifyOrderStatusChange(order, 'Cancelled by Vendor', message || `Vendor rejected COD order #${orderId}.`, ['customer', 'vendor']);
       }
-      notifyOrderStatusChange(order, 'Cancelled', `Vendor rejected Order #${orderId}.`);
     }
   };
 
@@ -787,6 +946,20 @@ export const AppProvider = ({ children }) => {
     };
     await supabase.from('reviews').insert(newReview);
     setReviews((prev) => [{...newReview, productId: newReview.product_id, orderId: newReview.order_id, userName: newReview.user_name}, ...prev]);
+    
+    // Update Product Rating
+    const product = products.find(p => p.id === reviewData.productId);
+    if (product) {
+      const productReviews = reviews.filter(r => r.productId === reviewData.productId);
+      const newReviewCount = productReviews.length + 1;
+      const totalRating = productReviews.reduce((sum, r) => sum + r.rating, 0) + reviewData.rating;
+      const newAverageRating = Number((totalRating / newReviewCount).toFixed(1));
+
+      await supabase.from('products').update({ 
+        rating: newAverageRating, 
+        review_count: newReviewCount 
+      }).eq('id', reviewData.productId);
+    }
     
     // Remove auto-archive so it stays in order history
     // if (reviewData.orderId) {

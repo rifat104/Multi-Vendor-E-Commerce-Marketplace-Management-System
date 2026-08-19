@@ -194,14 +194,7 @@ export const DeliveryView = () => {
       </div>
 
       {/* Rider Performance Metric Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '2rem',
-        }}
-      >
+      <div className="responsive-metric-grid" style={{ marginBottom: '2rem' }}>
         <div className="card" style={{ borderLeft: '4px solid var(--accent-blue)' }}>
           <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>Active Shipment Tasks</div>
           <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--accent-blue)', marginTop: '0.3rem' }}>
@@ -378,7 +371,7 @@ export const DeliveryView = () => {
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
+        <div className="responsive-delivery-grid">
           {filteredOrders.map((order) => {
             const isCOD = order.paymentMethod === 'Cash on Delivery';
             const isDelivered = order.status === 'Delivered';

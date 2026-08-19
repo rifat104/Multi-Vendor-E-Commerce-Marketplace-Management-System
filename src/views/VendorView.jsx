@@ -38,9 +38,13 @@ export const VendorView = () => {
     deleteProduct,
     vendorProcessOrder,
     updateVendorProfile,
+    updateProduct,
     showAlert,
     setActiveRole,
   } = useApp();
+
+  const [editingStockProduct, setEditingStockProduct] = useState(null);
+  const [editStockValue, setEditStockValue] = useState('');
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -84,7 +88,7 @@ export const VendorView = () => {
   // Financial Calculations: Vendor ONLY receives money after delivery is Complete ('Delivered')!
   const deliveredOrders = vendorOrders.filter((o) => o.status === 'Delivered');
   const pendingDeliveryOrders = vendorOrders.filter(
-    (o) => o.status === 'Confirmed' || o.status === 'Processing' || o.status === 'Shipped' || o.status === 'Pending' || o.status === 'Pending Verification'
+    (o) => o.status === 'Confirmed' || o.status === 'Processing' || o.status === 'Shipped' || o.status === 'Pending' || o.status === 'Pending Verification' || o.status === 'Pending Vendor Approval'
   );
 
   const grossSales = deliveredOrders.reduce((sum, order) => {
@@ -288,14 +292,7 @@ export const VendorView = () => {
       <VendorAnalyticsConsole vendor={vendor} />
 
       {/* KPI Financial Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '1.25rem',
-          marginBottom: '2rem',
-        }}
-      >
+      <div className="responsive-metric-grid" style={{ marginBottom: '2rem' }}>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             <span>Delivered Gross Sales</span>
@@ -546,7 +543,7 @@ export const VendorView = () => {
                         <span className={`badge badge-${order.status.toLowerCase().replace(' ', '-')}`}>{order.status}</span>
                       </td>
                       <td>
-                        {order.status === 'Confirmed' || order.status === 'Pending' ? (
+                        {order.status === 'Pending Vendor Approval' ? (
                           <div style={{ display: 'flex', gap: '0.4rem' }}>
                             <button
                               className="btn btn-success"
@@ -559,12 +556,21 @@ export const VendorView = () => {
                             <button
                               className="btn btn-danger"
                               style={{ fontSize: '0.75rem', padding: '0.35rem 0.65rem' }}
-                              onClick={() => vendorProcessOrder(order.id, 'reject', 'Vendor out of stock. Order cancelled & customer refunded.')}
+                              onClick={() => {
+                                const reason = window.prompt("Please enter a reason for rejecting this order:");
+                                if (reason) {
+                                  vendorProcessOrder(order.id, 'reject', `Vendor rejected order: ${reason}`);
+                                }
+                              }}
                             >
-                              <XCircle size={14} /> Reject & Refund
+                              <XCircle size={14} /> {order.paymentMethod === 'Cash on Delivery' ? 'Reject Order' : 'Reject & Refund'}
                             </button>
                           </div>
-                        ) : order.status === 'Processing' ? (
+                        ) : order.status === 'Pending Verification' ? (
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                            Awaiting Admin Payment Verification
+                          </div>
+                        ) : order.status === 'Processing' || order.status === 'Ready for Courier' ? (
                           <div style={{ fontSize: '0.78rem', color: 'var(--accent-blue)', fontWeight: 700 }}>
                             <Truck size={14} style={{ display: 'inline', marginRight: 4 }} />
                             Shipment Requested (Awaiting Courier)
@@ -637,23 +643,67 @@ export const VendorView = () => {
                     </td>
                     <td style={{ fontWeight: 800, color: 'var(--accent-blue)' }}>BDT {product.price.toLocaleString()}</td>
                     <td>
-                      {product.stock <= 5 ? (
-                        <span className="badge badge-pending">
-                          Low Stock ({product.stock})
-                        </span>
+                      {editingStockProduct === product.id ? (
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <input 
+                            type="number" 
+                            className="form-input" 
+                            style={{ width: '70px', padding: '0.4rem', fontSize: '0.8rem' }} 
+                            value={editStockValue}
+                            onChange={(e) => setEditStockValue(e.target.value)}
+                          />
+                          <button 
+                            className="btn btn-primary" 
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}
+                            onClick={() => {
+                              updateProduct(product.id, { ...product, stock: Number(editStockValue) });
+                              setEditingStockProduct(null);
+                              showAlert('Success', 'Stock updated successfully!', 'success');
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button 
+                            className="btn btn-outline" 
+                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.75rem' }}
+                            onClick={() => setEditingStockProduct(null)}
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        </div>
                       ) : (
-                        <span className="badge badge-approved">{product.stock} units</span>
+                        product.stock <= 5 ? (
+                          <span className="badge badge-pending">
+                            Low Stock ({product.stock})
+                          </span>
+                        ) : (
+                          <span className="badge badge-approved">{product.stock} units</span>
+                        )
                       )}
                     </td>
                     <td>★ {product.rating} ({product.reviewCount})</td>
                     <td>
-                      <button
-                        onClick={() => deleteProduct(product.id)}
-                        style={{ color: 'var(--accent-rose)', padding: '0.4rem' }}
-                        title="Delete Product"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        <button
+                          onClick={() => {
+                            setEditingStockProduct(product.id);
+                            setEditStockValue(product.stock);
+                          }}
+                          style={{ color: 'var(--accent-blue)', padding: '0.4rem' }}
+                          title="Update Stock"
+                          className="icon-btn"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          onClick={() => deleteProduct(product.id)}
+                          style={{ color: 'var(--accent-rose)', padding: '0.4rem' }}
+                          title="Delete Product"
+                          className="icon-btn"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -688,7 +738,7 @@ export const VendorView = () => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="responsive-product-grid" style={{ gap: '0.75rem' }}>
                 <div className="form-group">
                   <label className="form-label">Discount Type</label>
                   <select
@@ -880,7 +930,7 @@ export const VendorView = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="responsive-product-grid" style={{ gap: '0.75rem' }}>
                 <div className="form-group">
                   <label className="form-label">Phone Number</label>
                   <input
